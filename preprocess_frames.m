@@ -1,7 +1,7 @@
 function [ppvid, res_fname ] = preprocess_video(vid_fname, frame_sample_interval, trim_first_seconds)
 %% init
 if nargin<1
-    vid_fname = 'videos/approaching_toward.avi'; 
+    vid_fname = 'videos/approaching_toward.avi';
 end
 
 if nargin < 2
@@ -9,7 +9,7 @@ if nargin < 2
 end
 
 if nargin < 3
-    trim_first_seconds = 3;
+    trim_first_seconds = 3.5;
 end
 
 initdirs
@@ -22,30 +22,36 @@ video = obj.read();
 
 frames_per_sec = 30;
 %% Iterate on frames.
-[frames, depths_superpxl, depths_pxl, edges, uvOFs] = deal({});
+[frames, depths_superpxl, depths_pxl, edges, uvOFs, Gx, Gy] = deal({});
 
 Nframes = size(video,4);
 
 t = 1; % Sampled frames counter.
-[depths_superpxl{1}, depths_pxl{1}] = getDepth_Fayao(video(:,:,:,1));
+
+im=video(:,:,:,1);
+[depths_superpxl{1}, depths_pxl{1}] = getDepth_Fayao(im);
+imgray = rgb2gray(mat2gray(im));
+
 for k=1 + (trim_first_seconds*frames_per_sec):frame_sample_interval:Nframes
-    im=video(:,:,:,k);
     frames{t} = im;
+    %% image gradients (edges)
+    [Gx{t}, Gy{t}] = imgradientxy(imgray, 'Sobel');
 
-
-
-    %% Optical Flow
     if k <= (Nframes-frame_sample_interval) % we can't eval OF for the last frame, so we skip it.
         %% Evaluate depth estimation
         im2 = video (:,:,:,k+frame_sample_interval);
+        im2gray = rgb2gray(mat2gray(im2));
+        
         tic
         [depths_superpxl{t+1}, depths_pxl{t+1}] = getDepth_Fayao(im2);
         toc
-
-        [im1gray, im2gray] = OFacquistionSeq(im, im2);
         
-        uvOFs{t} = OpticalFlowCLG_TV(im1gray, im2gray);
+        %% Optical Flow
+        uvOFs{t} = OpticalFlowCLG_TV(imgray, im2gray);
         
+        % preparing for next iteration
+        im = im2;
+        imgray = im2gray;
     end
     
     t=t+1;
@@ -53,43 +59,9 @@ end
 %% save results
 fsmp_str = [ '_fsmp_' num2str(frame_sample_interval)];
 res_fname = ['preprocessed_videos/' vid_name fsmp_str '_ppvid'];
-ppvid = v2struct(vid_fname, frames, depths_superpxl, depths_pxl, edges, uvOFs, frame_sample_interval, trim_first_seconds);
+ppvid = v2struct(vid_fname, frames, depths_superpxl, depths_pxl, edges, uvOFs, frame_sample_interval, trim_first_seconds, Gx, Gy);
 fname_depth_gif = visualize_preproc(vid_name, ppvid);
 save(res_fname, 'ppvid', '-v7.3');
-
-
-function [fname_depth_gif, fname_frames_gif] = visualize_preproc(vid_name, ppvid)
-N = length(ppvid.depths_pxl);
-fsmp_str = [ '_fsmp_' num2str(ppvid.frame_sample_interval)];
-
-fname_depth_gif = sprintf('depth_%s%s.gif', vid_name, fsmp_str);
-fname_frames_gif = sprintf('frames_%s%s.gif', vid_name, fsmp_str);
-
-max_depth = max(max(cell2mat(ppvid.depths_pxl)));
-for t=1:N
-    figure(1)
-    imshow(ppvid.depths_pxl{t}/max_depth);
-    colormap(flipud(parula));shg
-    colorbar;shg
-    drawnow
-    
-    save_animated_gif_frame(fname_depth_gif, t==1);
-    if t==N % saving last frame again
-        save_animated_gif_frame(fname_depth_gif, t==1);
-        save_animated_gif_frame(fname_depth_gif, t==1);
-    end
-
-    figure(2)
-    imshow(ppvid.frames{t});
-    drawnow
-    save_animated_gif_frame(fname_frames_gif, t==1);
-    if t==N % saving last frame again
-        save_animated_gif_frame(fname_frames_gif, t==1);
-        save_animated_gif_frame(fname_frames_gif, t==1);
-    end
-
-end
-
 
 
 
@@ -127,9 +99,3 @@ toc
 uvOF(:, :, 1) = u;
 uvOF(:, :, 2) = v;
 
-function [im1gray, im2gray] = OFacquistionSeq(im1, im2)
-im1gray=mat2gray(im1);
-im2gray=mat2gray(im2);
-
-im1gray=rgb2gray(im1gray);
-im2gray=rgb2gray(im2gray);
