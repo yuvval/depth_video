@@ -11,7 +11,7 @@ im = double(rgb2gray(ppvid.frames{t}));
 % [ppvid.Gx{t}, ppvid.Gy{t}] = imgradientxy(im, 'IntermediateDifference');
 % 
 % [Gmag, Gdir] = imgradient(ppvid.Gx{t}, ppvid.Gy{t});
-Gmag = double(edge(im, 'canny'));
+Gmag =0* double(edge(im, 'canny')) +10;
 imshow(Gmag/max(Gmag(:)));shg
 % return
 d = double(ppvid.depths_pxl{t}(:));
@@ -25,13 +25,15 @@ Gmag2vec = Gmag2(:);
 all_pairs = get_inds_of_all_pixels_neighbours([size(im) 1]);
 
 %%
-rho = 0.01;
+% rho = 0.01;
+rho = 10;
 % imtmp = exp((-1/rho)*Gmag2);
 % imshow(imtmp/max(imtmp(:)))
 
 N = length(d);
 % C = mean(d(:));
-C = 10;
+C = 1;
+C = 1/sqrt(rho);
 all_pairs_edge_weights = C*exp((-1/rho)*Gmag2vec(all_pairs(:,2)));
 Wintra = sparse(all_pairs(:,1), all_pairs(:,2), all_pairs_edge_weights);
 W = Wintra;

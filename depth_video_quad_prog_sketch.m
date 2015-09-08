@@ -29,20 +29,29 @@ depth_frames = depth_frames/mean(depth_frames(:));
 
 %%
 [XX0, YY0] = meshgrid(1:imsize(2), 1:imsize(1));
-OFmag = zeros([imsize (Nframes-1)]);
-OF_ids_map = zeros(Nimg, (Nframes -1));
+dist_around_OF = 2; % L1 radius around an OF pixel
+N_neigh_per_pxl = 1 + 2*dist_around_OF; % number of neighbours around each OF pixel
+[orig_ids_map, OF_ids_map, OFweights] = deal(nan(Nimg*N_neigh_per_pxl, (Nframes -1)));
+
 for t=1:(Nframes-1)
-    XX2 = round(XX0 + uOFframes(:,:,t));
-    XX2(XX2<1) = 1;
-    XX2(XX2>imsize(2)) = imsize(2);
+    XpostOF = round(XX0 + uOFframes(:,:,t));
     
-    YY2 = round(YY0 + vOFframes(:,:,t));
-    YY2(YY2<1) = 1;
-    YY2(YY2>imsize(1)) = imsize(1);
-    OF_ids_map(:,t) = (t-1)*Nimg + sub2ind(imsize, YY2(:), XX2(:));
-    
-    OFmag(:,:,t) = sqrt(uOFframes(:,:,t).^2 + vOFframes(:,:,t).^2);
+    YpostOF = round(YY0 + vOFframes(:,:,t));
+
+    [all_neigh_pairs_inds, all_neigh_L2_dist] = get_inds_of_all_pixels_neighbours_following_OF(imsize , XpostOF, YpostOF, dist_around_OF);
+    n = length(all_neigh_L2_dist)
+    orig_ids_map(1:n,t) = all_neigh_pairs_inds(:,1) + (t-1)*Nimg;
+    OF_ids_map(1:n,t) = t*Nimg + all_neigh_pairs_inds(:,1);
+    OFweights(1:n,t) = all_neigh_L2_dist;
 end
+orig_ids_map = orig_ids_map(:);
+OF_ids_map = OF_ids_map(:);
+OFweights = OFweights(:);
+
+orig_ids_map(isnan(orig_ids_map)) = [];
+OF_ids_map(isnan(OF_ids_map)) = [];
+OFweights(isnan(OFweights)) = [];
+
 %%
 rhoOF = 1;
 C_OF = 1;
