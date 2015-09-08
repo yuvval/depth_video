@@ -9,7 +9,7 @@ if nargin < 2
 end
 
 if nargin < 3
-    trim_first_seconds = 3.5;
+    trim_first_seconds = 3;
 end
 
 initdirs
@@ -28,19 +28,20 @@ Nframes = size(video,4);
 
 t = 1; % Sampled frames counter.
 
-im=video(:,:,:,1);
+im=video(:,:,:,(1 + (trim_first_seconds*frames_per_sec)));
 [depths_superpxl{1}, depths_pxl{1}] = getDepth_Fayao(im);
-imgray = rgb2gray(mat2gray(im));
+imgray = double(rgb2gray(im));
 
-for k=1 + (trim_first_seconds*frames_per_sec):frame_sample_interval:Nframes
+for k=(1 + (trim_first_seconds*frames_per_sec)):frame_sample_interval:Nframes
     frames{t} = im;
     %% image gradients (edges)
-    [Gx{t}, Gy{t}] = imgradientxy(imgray, 'Sobel');
+    edge_method = 'IntermediateDifference';
+    [Gx{t}, Gy{t}] = imgradientxy(imgray, edge_method);
 
     if k <= (Nframes-frame_sample_interval) % we can't eval OF for the last frame, so we skip it.
         %% Evaluate depth estimation
         im2 = video (:,:,:,k+frame_sample_interval);
-        im2gray = rgb2gray(mat2gray(im2));
+        im2gray = double(rgb2gray(im2));
         
         tic
         [depths_superpxl{t+1}, depths_pxl{t+1}] = getDepth_Fayao(im2);
@@ -59,7 +60,7 @@ end
 %% save results
 fsmp_str = [ '_fsmp_' num2str(frame_sample_interval)];
 res_fname = ['preprocessed_videos/' vid_name fsmp_str '_ppvid'];
-ppvid = v2struct(vid_fname, frames, depths_superpxl, depths_pxl, edges, uvOFs, frame_sample_interval, trim_first_seconds, Gx, Gy);
+ppvid = v2struct(vid_fname, frames, depths_superpxl, depths_pxl, edges, uvOFs, frame_sample_interval, trim_first_seconds, edge_method, Gx, Gy);
 fname_depth_gif = visualize_preproc(vid_name, ppvid);
 save(res_fname, 'ppvid', '-v7.3');
 
