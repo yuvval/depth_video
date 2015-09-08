@@ -5,15 +5,17 @@ clear
 %%
 load preprocessed_videos/approaching_toward_fsmp_15_ppvid.mat
 
-t=7;
+t=6;
 im = double(rgb2gray(ppvid.frames{t}));
 %% image gradients (edges)
-[ppvid.Gx{t}, ppvid.Gy{t}] = imgradientxy(im, 'IntermediateDifference');
-
-[Gmag, Gdir] = imgradient(ppvid.Gx{t}, ppvid.Gy{t});
-% imshow(Gmag/max(Gmag(:)));shg
+% [ppvid.Gx{t}, ppvid.Gy{t}] = imgradientxy(im, 'IntermediateDifference');
+% 
+% [Gmag, Gdir] = imgradient(ppvid.Gx{t}, ppvid.Gy{t});
+Gmag = double(edge(im, 'canny'));
+imshow(Gmag/max(Gmag(:)));shg
 % return
 d = double(ppvid.depths_pxl{t}(:));
+d = d/mean(d(:));
 % d = double(ppvid.depths_superpxl{t}(:));
 
 Gmag2 = Gmag.^2;
@@ -23,12 +25,14 @@ Gmag2vec = Gmag2(:);
 all_pairs = get_inds_of_all_pixels_neighbours([size(im) 1]);
 
 %%
-rho = 100;
+rho = 0.01;
 % imtmp = exp((-1/rho)*Gmag2);
 % imshow(imtmp/max(imtmp(:)))
 
 N = length(d);
-all_pairs_edge_weights = exp((-1/rho)*Gmag2vec(all_pairs(:,2)));
+% C = mean(d(:));
+C = 10;
+all_pairs_edge_weights = C*exp((-1/rho)*Gmag2vec(all_pairs(:,2)));
 Wintra = sparse(all_pairs(:,1), all_pairs(:,2), all_pairs_edge_weights);
 W = Wintra;
 Wc = sparse(1:N, 1:N, sum(W,1));
@@ -40,27 +44,34 @@ tic
 X = quadprog(Wq, -2*d);
 toc
 
-
-%% 
-fname_gif = sprintf('depth_quad_prog_rho_%2.3f.gif', rho);
-
+%%
 figure
-imshow(reshape(d/max(d), 240, 320));shg
-xlabel(sprintf('\\rho = %2.3f\ngiven depth estimations', rho),'Interpreter','Tex');
+imshowpair(reshape(d/max(d), 240, 320), reshape(X/max(X), 240, 320), 'montage');
+title(sprintf('given depth estimations                                      \\rho = %2.3f, C = %2.3f, after quad prog with edges constraints', rho, C), 'Interpreter','Tex');
 colormap(flipud(parula));shg
-drawnow
-save_animated_gif_frame(fname_gif, true);
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
+fname_jpg = sprintf('depth_quad_prog_rho_%2.3f_C_%2.3f.jpg', rho, C);
+saveas(gcf, fname_jpg);
 
-imshow(reshape(X/max(X), 240, 320));shg
-xlabel(sprintf('\\rho = %2.3f\nafter quad prog with edges constraints', rho),'Interpreter','Tex');
-colormap(flipud(parula));shg
-drawnow
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
-
-
+% %% 
+% fname_gif = sprintf('depth_quad_prog_rho_%2.3f.gif', rho);
+% 
+% figure
+% imshow(reshape(d/max(d), 240, 320));shg
+% xlabel(sprintf('\\rho = %2.3f\ngiven depth estimations', rho),'Interpreter','Tex');
+% colormap(flipud(parula));shg
+% drawnow
+% save_animated_gif_frame(fname_gif, true);
+% save_animated_gif_frame(fname_gif, false);
+% save_animated_gif_frame(fname_gif, false);
+% save_animated_gif_frame(fname_gif, false);
+% pause(2)
+% imshow(reshape(X/max(X), 240, 320));shg
+% xlabel(sprintf('\\rho = %2.3f\nafter quad prog with edges constraints', rho),'Interpreter','Tex');
+% colormap(flipud(parula));shg
+% drawnow
+% save_animated_gif_frame(fname_gif, false);
+% save_animated_gif_frame(fname_gif, false);
+% save_animated_gif_frame(fname_gif, false);
+% save_animated_gif_frame(fname_gif, false);
+% 
+% 
