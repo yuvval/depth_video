@@ -1,6 +1,6 @@
 close all
 clear
-
+initdirs
 
 %%
 load preprocessed_videos/approaching_toward_fsmp_15_ppvid.mat
@@ -30,8 +30,8 @@ depth_frames = depth_frames/mean(depth_frames(:));
 %%
 [XX0, YY0] = meshgrid(1:imsize(2), 1:imsize(1));
 dist_around_OF = 2; % L1 radius around an OF pixel
-N_neigh_per_pxl = 1 + 2*dist_around_OF; % number of neighbours around each OF pixel
-[orig_ids_map, OF_ids_map, OFweights] = deal(nan(Nimg*N_neigh_per_pxl, (Nframes -1)));
+N_neigh_per_pxl = (1 + 2*dist_around_OF)^2; % number of neighbours around each OF pixel
+[orig_ids_map, OF_ids_map, OFmag] = deal(nan(Nimg*N_neigh_per_pxl, (Nframes -1)));
 
 for t=1:(Nframes-1)
     XpostOF = round(XX0 + uOFframes(:,:,t));
@@ -39,24 +39,24 @@ for t=1:(Nframes-1)
     YpostOF = round(YY0 + vOFframes(:,:,t));
 
     [all_neigh_pairs_inds, all_neigh_L2_dist] = get_inds_of_all_pixels_neighbours_following_OF(imsize , XpostOF, YpostOF, dist_around_OF);
-    n = length(all_neigh_L2_dist)
+    n = length(all_neigh_L2_dist);
     orig_ids_map(1:n,t) = all_neigh_pairs_inds(:,1) + (t-1)*Nimg;
     OF_ids_map(1:n,t) = t*Nimg + all_neigh_pairs_inds(:,1);
-    OFweights(1:n,t) = all_neigh_L2_dist;
+    OFmag(1:n,t) = all_neigh_L2_dist;
 end
 orig_ids_map = orig_ids_map(:);
 OF_ids_map = OF_ids_map(:);
-OFweights = OFweights(:);
+OFmag = OFmag(:);
 
 orig_ids_map(isnan(orig_ids_map)) = [];
 OF_ids_map(isnan(OF_ids_map)) = [];
-OFweights(isnan(OFweights)) = [];
+OFmag(isnan(OFmag)) = [];
 
 %%
-rhoOF = 1;
-C_OF = 1;
+rhoOF =1e-4;
+C_OF = 1/sqrt(2*pi*rhoOF);
 OFweights = C_OF*exp((-1/rhoOF)*OFmag(:).^2);
-Winter = sparse(1:(N-Nimg), OF_ids_map(:), OFweights, N, N);
+Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
 %%
 d = double(depth_frames(:));
 
@@ -66,13 +66,13 @@ Gmag2vec = Gmag2(:);
 all_pairs = get_inds_of_all_pixels_neighbours(size(depth_frames));
 
 %%
-rhoE = 0.01;
+rhoE = 0.0001;
 C_E = 1;
 % imtmp = exp((-1/rhoE)*Gmag2);
 % imshow(imtmp/max(imtmp(:)))
 all_pairs_edge_weights = C_E*exp((-1/rhoE)*Gmag2vec(all_pairs(:,2)));
 Wintra = sparse(all_pairs(:,1), all_pairs(:,2), all_pairs_edge_weights, N, N);
-W = Wintra + Winter;
+W = Winter;
 Wc = sparse(1:N, 1:N, sum(W,1));
 Wr = sparse(1:N, 1:N, sum(W,2));
 Wq = sparse(Wr + Wc -2*W +speye(size(W)));
@@ -93,12 +93,12 @@ for t=1:Nframes
     caxis([min(X) max(X)]);
     colormap(flipud(parula));shg
     drawnow
-    pause(0.5)
+    pause(1.5)
     save_animated_gif_frame(fname_gif, t==1);
 end
 save_animated_gif_frame(fname_gif, false);
 save_animated_gif_frame(fname_gif, false);
-
+pause(5)
 %% eval Z movement of a stationary area
 x1x2 = 220:310;
 y1y2 = 140:180;
