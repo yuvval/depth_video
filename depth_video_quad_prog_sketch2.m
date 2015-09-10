@@ -1,5 +1,10 @@
+function qp_depth_vid = depth_video_quad_prog_sketch2(rhoOF, C_OF)
+
+% rhoOF =1;
+% % C_OF = 1/sqrt(2*pi*rhoOF);
+% C_OF = 0.1;
+
 close all
-clear
 initdirs
 
 %%
@@ -53,52 +58,82 @@ OF_ids_map(isnan(OF_ids_map)) = [];
 OFmag(isnan(OFmag)) = [];
 
 %%
-rhoOF =1e-1;
-C_OF = 1/sqrt(2*pi*rhoOF);
 OFweights = C_OF*exp((-1/rhoOF)*OFmag(:).^2);
-Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
+% Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
 %%
 d = double(depth_frames(:));
 
 Gmag2 = Gmag_frames.^2;
 Gmag2vec = Gmag2(:);
 
-all_pairs = get_inds_of_all_pixels_neighbours(size(depth_frames));
+all_pairs_intra = get_inds_of_all_pixels_neighbours(size(depth_frames));
 
 %%
-rhoE = 0.01;
-C_E = 0.1;
+rhoE = 0.0001;
+C_E = 1;
 % imtmp = exp((-1/rhoE)*Gmag2);
 % imshow(imtmp/max(imtmp(:)))
-all_pairs_edge_weights = C_E*exp((-1/rhoE)*Gmag2vec(all_pairs(:,2)));
-Wintra = sparse(all_pairs(:,1), all_pairs(:,2), all_pairs_edge_weights, N, N);
-W = Winter;
-Wc = sparse(1:N, 1:N, sum(W,1));
-Wr = sparse(1:N, 1:N, sum(W,2));
-Wq = sparse(Wr + Wc -2*W +speye(size(W)));
+all_pairs_edge_weights = C_E*exp((-1/rhoE)*Gmag2vec(all_pairs_intra(:,2)));
+% Wintra = sparse(all_pairs_intra(:,1), all_pairs_intra(:,2), all_pairs_edge_weights, N, N);
+%%
+
+Gmagvec = Gmag_frames(:);
+
+all_pairs_intra = get_inds_of_all_pixels_neighbours(size(depth_frames));
+Npairs_intra = length(all_pairs_intra(:,1));
+Npairs_inter = length(OFweights);
+% Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
+
+Npxl = length(d);
+Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2))); OFweights(:); zeros(Npxl,1)];
+% Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2)));  zeros(Npxl,1)];
+Nunknowns = length(Hdiag);
+H = sparse(1:Nunknowns, 1:Nunknowns, Hdiag);
+f = zeros(Nunknowns,1);
+
+DiDj = sparse(1:Npairs_intra, all_pairs_intra(:,1), ones(Npairs_intra, 1)) + sparse(1:Npairs_intra, all_pairs_intra(:,2), -ones(Npairs_intra, 1));
+Sij = sparse(1:Npairs_intra, 1:Npairs_intra, ones(Npairs_intra,1));
+
+DmDn = sparse(1:Npairs_inter, orig_ids_map(:), ones(Npairs_inter, 1), Npairs_inter, Npxl) + sparse(1:Npairs_inter, OF_ids_map(:), -ones(Npairs_inter, 1), Npairs_inter, Npxl);
+Smn = sparse(1:Npairs_inter, 1:Npairs_inter, ones(Npairs_inter,1));
+
+Si = sparse(1:Npxl, 1:1:Npxl, -ones(Npxl,1));
+Di = sparse(1:Npxl, 1:1:Npxl, ones(Npxl,1));
+
+Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si] [Sij;sparse(Npairs_inter+Npxl, Npairs_intra)] [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter)] [ DiDj ; DmDn; Di] ] ;
+beq = [sparse(Npairs_intra+Npairs_inter,1); d];
+
 
 %%
+disp('zz');
 tic
-X = quadprog(Wq, -2*d);
+X = quadprog(H, f, [], [], Aeq, beq);
 toc
 
 %% Visualization and post processing
-
 %% 
-qp_depth_vid = reshape(X, size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
-fname_gif = sprintf('depth_video_quad_prog_rhoE_%2.1f_rhoOF_%2.3f.gif', rhoE, rhoOF);
+% qp_depth_vid = reshape(X, size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
+
+qp_depth_vid = reshape(X((end-Npxl+1):end), size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
+fname_gif = sprintf('depth_video_quad_prog_method2_rhoOF_%2.3f_COF_%2.3f.gif', rhoOF, C_OF);
 himg = figure;
+Gmag_mask_frames = (1-Gmag_frames);
+mn_depth = min(qp_depth_vid (:));
+depth_vid_masked = qp_depth_vid.*Gmag_mask_frames;
+depth_vid_masked(depth_vid_masked==0) = depth_vid_masked(depth_vid_masked==0) + mn_depth;
+
 for t=1:Nframes
-    imshow(qp_depth_vid(:,:,t));shg
-    xlabel(sprintf('\\rhoE = %2.3f, \\rhoOF = %2.3f\nafter quad prog with edges constraints', rhoE, rhoOF),'Interpreter','Tex');    
-    caxis([min(X) max(X)]);
+    imshow(depth_vid_masked(:,:,t));shg
+    xlabel(sprintf('\\rhoOF = %2.3f, \\C_OF = %2.3f\nafter quad prog method2', rhoOF, C_OF),'Interpreter','Tex');    
+    caxis([min(qp_depth_vid (:)) max(qp_depth_vid (:))]);
     colormap(flipud(parula));shg
     drawnow
-    pause(.5)
+    pause(1.5)
     save_animated_gif_frame(fname_gif, t==1);
 end
 save_animated_gif_frame(fname_gif, false);
 save_animated_gif_frame(fname_gif, false);
+% return
 % pause(5)
 % %% eval Z movement of a stationary area
 % x1x2 = 220:310;
@@ -147,21 +182,3 @@ save_animated_gif_frame(fname_gif, false);
 
 
 
-%% Save RAW depth video to gif
-Gmag_mask_frames = (1-Gmag_frames);
-mn_depth = min(depth_frames (:));
-depth_vid_masked = depth_frames.*Gmag_mask_frames;
-depth_vid_masked(depth_vid_masked==0) = depth_vid_masked(depth_vid_masked==0) + mn_depth;
-
-fname_gif = sprintf('depth_video_raw.gif');
-himg = figure;
-for t=1:Nframes
-    imshow(depth_vid_masked(:,:,t));shg
-    xlabel(sprintf('depth video, raw depth estimation'),'Interpreter','Tex');    
-    caxis([min(depth_frames(:)) max(depth_frames(:))]);
-    colormap(flipud(parula));shg
-    drawnow
-    save_animated_gif_frame(fname_gif, t==1);
-end
-save_animated_gif_frame(fname_gif, false);
-save_animated_gif_frame(fname_gif, false);
