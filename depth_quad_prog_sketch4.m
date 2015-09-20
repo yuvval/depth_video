@@ -1,42 +1,131 @@
 close all
 clear
 
-
+initdirs;
 
 %% This solver is for a single frame with a QP with Objective & constraints
 
 %%
 load preprocessed_videos/approaching_toward_fsmp_15_ppvid.mat
 
-t=6;
+t=4;
 
 imrgb = ppvid.frames{t};
 im = double(rgb2gray(ppvid.frames{t}));
 Nimg = numel(im);
 
 candidates = im2mcg(imrgb, 'fast');
+[~, cand_sort_ids] = sort(candidates.scores, 'descend');
 %%
-mask_img = get_mcg_mask_from_candidates(candidates, 5);
-[bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img);
-
+masks_heat_map = zeros(size(im));
+N_cand = size(candidates.scores,1);
+mask_img = cell(N_cand,1);
+heatmap_history = {};
+k = 1;
+for id = cand_sort_ids.'
+mask_img{id} = get_mcg_mask_from_candidates(candidates, id);
+masks_heat_map = masks_heat_map + mask_img{id};
+if mod(k,100) == 0
+    heatmap_history{end+1} = masks_heat_map;
+end
+k=k+1;
+end
+imshow(masks_heat_map/N_cand);
+caxis([0 max(masks_heat_map(:)/N_cand)]);
+colorbar; shg;
+%%
+figure;
+for k=1:length(heatmap_history)
+    imshow(heatmap_history{k}/N_cand);
+    caxis([0 max(masks_heat_map(:)/N_cand)]);
+    colorbar; shg;
+    pause(.5)
+end
+return
+%%
+metric_OFdiv = [];
+for c = 1:N_cand
+[bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img{c});
 uOF = ppvid.uvOFs{t}(bbox(1):bbox(2), bbox(3):bbox(4),1);
 vOF = ppvid.uvOFs{t}(bbox(1):bbox(2), bbox(3):bbox(4),2);
 
 
 
-divOF = divergence(uOF, vOF);
-% imshow(abs(divOF));shg
-mask_crop = (mask_img(bbox(1):bbox(2), bbox(3):bbox(4)));
-zz = (divOF).*mask_crop;
-% zz = abs(divOF);
+OFdiv = divergence(uOF, vOF);
+% imshow(abs(OFdiv));shg
+mask_crop = (mask_img{c}(bbox(1):bbox(2), bbox(3):bbox(4)));
+zz = (OFdiv).*mask_crop;
+% zz = abs(OFdiv);
+% figure(1);
+% imshow(mask_img{c}); 
+% figure(2);
+% imshow(zz); caxis([-1 1]); shg
+norm_coef = sqrt(sum(mask_crop(:)));
+norm_coef = 1;
+mean_OFdiv(c) =  mean(OFdiv(mask_crop))/norm_coef;
+std_OFdiv(c) =  std(OFdiv(mask_crop))/norm_coef;
+metric_OFdiv(c) =  sqrt(mean_OFdiv(c).^2 + (std_OFdiv(c)).^2)/norm_coef;
+num_pxl(c) = sum(mask_crop(:));
+% title(sprintf('OF divegence for the detection crop\nlog10(SNR) = %2.1f, mean = %2.3f, std = %2.3f', log10(snr_OFdiv(c)), mean_OFdiv(c) ,std_OFdiv(c))) ;
+% figure(3)
+
+
+% subplot(1,2,1)
+% hist(OFdiv(:));shg
+% title('histogram of OFdiv for bbox')
+% [mean(OFdiv(:)), std(OFdiv(:))]
+% subplot(1,2,2);
+% hist(OFdiv(mask_crop));shg
+% title('histogram of OFdiv for mask crop')
+% [mean(OFdiv(mask_crop)), std(OFdiv(mask_crop))]
+% tilefigs();
+% pause(20);
+end
+%%
+close all
+bestk = 20;
+[~, sorted_minOF_ids] = sort(metric_OFdiv,'ascend');
+for c=sorted_minOF_ids(1:bestk)
+[bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img{c});
+uOF = ppvid.uvOFs{t}(bbox(1):bbox(2), bbox(3):bbox(4),1);
+vOF = ppvid.uvOFs{t}(bbox(1):bbox(2), bbox(3):bbox(4),2);
+
+OFdiv = divergence(uOF, vOF);
+imshow(abs(OFdiv));shg
+mask_crop = (mask_img{c}(bbox(1):bbox(2), bbox(3):bbox(4)));
+zz = (OFdiv).*mask_crop;
+% zz = abs(OFdiv);
 figure(1);
-imshow(mask_img); 
+imshow(mask_img{c}); 
 figure(2);
-imshow(zz); caxis([-1 1]); shg
-figure(3)
-hist(divOF(:));shg
-[mean(divOF(:)), std(divOF(:))]
+imshow(zz); caxis([-1 1]); 
+title(sprintf('OF divegence for the detection crop\nmetric_OFdiv = %1.4f, mean = %1.3f, std = %1.3f', metric_OFdiv(c), mean_OFdiv(c) ,std_OFdiv(c))) ;
+shg
+pause(3);
+end
 return
+
+%%
+close all
+figure; hist(mean_OFdiv, -0.5:0.05:1.5); title('histogram of mean of OF divergence');
+figure; hist(std_OFdiv, 0:0.025:1.5); title('histogram of std of OF divergence');
+figure; plot(std_OFdiv, mean_OFdiv, '.'); xlabel('std'); ylabel('mean'); title('scatter of mean vs std of OF divergence');
+% figure; transparentScatter(std_OFdiv.', mean_OFdiv.', 0.005, 0.5); xlabel('std'); ylabel('mean'); title('scatter of mean vs std of OF divergence');
+% figure; transparentScatter(std_OFdiv.', mean_OFdiv.', 0.0005, 0.1); xlabel('std'); ylabel('mean'); title('scatter of mean vs std of OF divergence');
+% xlim([0, 0.1])
+% ylim([-.05 .05])
+figure; scatter(std_OFdiv.', mean_OFdiv.', [],log10(num_pxl)); xlabel('std'); ylabel('mean'); title('scatter of mean vs std of OF divergence');
+colormap(hsv);
+h = colorbar;
+ylabel(h, 'log10(num of pixels in region)');
+figure; scatter(std_OFdiv.', mean_OFdiv.', [],log10(num_pxl)); xlabel('std'); ylabel('mean'); title('scatter of mean vs std of OF divergence');
+colormap(hsv);
+h = colorbar;
+ylabel(h, 'log10(num of pixels in region)');
+xlim([0, 0.1])
+ylim([-.05 .05])
+return
+
 % mask_uv(:,1) = uOF(mask_pxl_ids);
 % mask_uv(:,2) = vOF(mask_pxl_ids);
 

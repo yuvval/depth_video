@@ -9,6 +9,7 @@ end
 sep = filesep; % equals '/' in linux
 
 addpath packages/
+addpath packages/heatscatter/
 addpath optical_flow
 addpath optical_flow/algorithms/CLG-TV/ 
 
