@@ -53,20 +53,12 @@ title('optical flow divergence')
 
 %%  Let's look on the OF and its statistics of the some candidates 
 
-candidates = im2mcg(imrgb, 'fast');
-% evaluate each of the masks
-N_cand = size(candidates.scores,1);
-mask_img = cell(N_cand,1);
-k = 1;
-for id = 1:N_cand
-    mask_img{id} = get_mcg_mask_from_candidates(candidates, id);
-    k=k+1;
-end
-
+[masks, candidates_db] = get_obj_det_candidates(imrgb, 'mcg_fast');
+N_cand = length(masks);
 
 for id = 1:5:30
-    [bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img{id});
-    mask_crop = (mask_img{id}(bbox(1):bbox(2), bbox(3):bbox(4)));
+    [bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(masks{id});
+    mask_crop = full(masks{id}(bbox(1):bbox(2), bbox(3):bbox(4)));
     OFdiv_mask = (OFdiv(bbox(1):bbox(2), bbox(3):bbox(4))).*mask_crop;
     figure
     imshow(OFdiv_mask); caxis([-1 1]); 
@@ -90,16 +82,10 @@ end
 %  patch out of the image.
 % 
 
-metric_OFdiv = [];
-for c = 1:N_cand
-    [bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img{c});
-    mask_crop = (mask_img{c}(bbox(1):bbox(2), bbox(3):bbox(4)));
-    OFdiv_mask = (OFdiv(bbox(1):bbox(2), bbox(3):bbox(4))).*mask_crop;
-    mean_OFdiv(c) =  mean(OFdiv_mask(mask_crop));
-    std_OFdiv(c) =  std(OFdiv_mask(mask_crop));
-    metric_OFdiv(c) =  mean_OFdiv(c).^2 + (std_OFdiv(c)).^2;
-    num_pxl(c) = sum(mask_crop(:));
-end
+
+[mean_OFdiv, std_OFdiv, num_pxl, metric_OFdiv] = get_featuremap_statistics_per_mask(masks, OFdiv);
+
+
 % figure; hist(mean_OFdiv, -0.5:0.05:1.5); title('histogram of mean of OF divergence');
 % figure; hist(std_OFdiv, 0:0.025:1.5); title('histogram of std of OF divergence');
 figure; scatter(std_OFdiv.', mean_OFdiv.', [],log10(num_pxl/Nimg)); xlabel('std'); ylabel('mean'); 
@@ -141,7 +127,7 @@ for c=sorted_minOF_ids
     if cnt > nbest
         break;
     end
-    [bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(mask_img{c});
+    [bbox, mask_pxl_ids, mask_pxl_coords] = mask2bbox(masks{c});
     
     % if this mask overlap by more than 20% with previous covered areas then we skip this mask
     if sum(covered_pixels_by_masks(mask_pxl_ids))/numel(mask_pxl_ids) > 0.2
@@ -151,7 +137,7 @@ for c=sorted_minOF_ids
     end
     covered_pixels_by_masks(mask_pxl_ids) = covered_pixels_by_masks(mask_pxl_ids) + 1; % mark current mask pixels as 'covered'
     
-    mask_crop = (mask_img{c}(bbox(1):bbox(2), bbox(3):bbox(4)));
+    mask_crop = full(masks{c}(bbox(1):bbox(2), bbox(3):bbox(4)));
     OFdiv_mask = (OFdiv(bbox(1):bbox(2), bbox(3):bbox(4))).*mask_crop;
     
     subplot(5, ceil(nbest/5), cnt-1);
@@ -170,6 +156,21 @@ masked_im = imrgb.*repmat(covered_pixels_by_masks,[1,1,3]);
 imshow(masked_im);
 title('masks (in white) of selected minimal OF div. patches');
 % % caxis('auto');
+
+%% repeat last with a func
+immobile_params.patch_sizes_range = [0.01, 0.1]; % in percent of image size
+immobile_params.num_pxl_per_mask  = num_pxl; % an array that contains the 
+                                              % number of pixels per mask
+immobile_params.imsize            = size(im); % [n_rows, n_cols] image size 
+immobile_params.nbest             = 20; % number of best masks to select
+immobile_params.masks             = masks; % objects proposal masks
+
+[selected_masks_ids, covered_pixels_by_masks_img] = ...
+    select_patches_according_to_metric(metric_OFdiv, ...
+                                     'immobile', immobile_params);
+assert(all(covered_pixels_by_masks_img(:) == covered_pixels_by_masks(:)));
+
+
 return
 
 
