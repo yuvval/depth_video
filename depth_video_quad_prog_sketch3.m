@@ -1,5 +1,5 @@
 % function qp_depth_vid = depth_video_quad_prog_sketch3(rhoOF, C_OF)
-
+clear
 rhoOF =1;
 % C_OF = 1/sqrt(2*pi*rhoOF);
 C_OF = 0.3;

@@ -11,6 +11,8 @@ sep = filesep; % equals '/' in linux
 if ~exist('proj_root_path', 'var')
     proj_root_path = './';
 end
+
+addpath([proj_root_path sep 'lowlevel_vision_procedures/']);
 addpath([proj_root_path sep 'packages/']);
 addpath([proj_root_path sep 'optical_flow/']);
 addpath([proj_root_path sep 'optical_flow/algorithms/CLG-TV//']);

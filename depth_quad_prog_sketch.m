@@ -1,6 +1,6 @@
 close all
 clear
-
+initdirs
 
 %%
 load preprocessed_videos/approaching_toward_fsmp_15_ppvid.mat

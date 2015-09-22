@@ -1,6 +1,6 @@
 close all
 clear
-
+initdirs
 %% This solver is for a single frame with a QP with Objective & constraints
 
 %%
