@@ -8,10 +8,12 @@ if strcmp(homedir, '' )
 end
 sep = filesep; % equals '/' in linux
 
-addpath packages/
-addpath packages/heatscatter/
-addpath optical_flow
-addpath optical_flow/algorithms/CLG-TV/ 
+if ~exist('proj_root_path', 'var')
+    proj_root_path = './';
+end
+addpath([proj_root_path sep 'packages/']);
+addpath([proj_root_path sep 'optical_flow/']);
+addpath([proj_root_path sep 'optical_flow/algorithms/CLG-TV//']);
 
 
 %%
