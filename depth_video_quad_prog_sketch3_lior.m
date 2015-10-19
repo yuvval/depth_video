@@ -2,9 +2,11 @@
 
 rhoOF =1;
 % C_OF = 1/sqrt(2*pi*rhoOF);
-C_OF = 0.3;
+C_OF = 1;
+dist_around_OF = 1; % L1 radius around an OF pixel
 
 close all
+proj_root_path = './';
 initdirs
 
 %%
@@ -34,7 +36,6 @@ end
 
 %%
 [XX0, YY0] = meshgrid(1:imsize(2), 1:imsize(1));
-dist_around_OF = 2; % L1 radius around an OF pixel
 N_neigh_per_pxl = (1 + 2*dist_around_OF)^2; % number of neighbours around each OF pixel
 [orig_ids_map, OF_ids_map, OFmag] = deal(nan(Nimg*N_neigh_per_pxl, (Nframes -1)));
 
@@ -46,7 +47,7 @@ for t=1:(Nframes-1)
     [all_neigh_pairs_inds, all_neigh_L2_dist] = get_inds_of_all_pixels_neighbours_following_OF(imsize , XpostOF, YpostOF, dist_around_OF);
     n = length(all_neigh_L2_dist);
     orig_ids_map(1:n,t) = all_neigh_pairs_inds(:,1) + (t-1)*Nimg;
-    OF_ids_map(1:n,t) = t*Nimg + all_neigh_pairs_inds(:,1);
+    OF_ids_map(1:n,t) = t*Nimg + all_neigh_pairs_inds(:,2);
     OFmag(1:n,t) = all_neigh_L2_dist;
 end
 orig_ids_map = orig_ids_map(:);
@@ -120,7 +121,7 @@ toc
 % qp_depth_vid = reshape(X, size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
 X = full(X);
 qp_depth_vid = reshape(X((end-Npxl):(end-1)), size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
-fname_gif = sprintf('depth_video_quad_prog_method3_lior_rhoOF_%2.3f_COF_%2.3f.gif', rhoOF, C_OF);
+fname_gif = sprintf('depth_video_quad_prog_method3_lior_rhoOF_%2.3f_COF_%2.3f_rOF_%d.gif', rhoOF, C_OF, dist_around_OF);
 himg = figure;
 Gmag_mask_frames = (1-Gmag_frames);
 mn_depth = min(qp_depth_vid (:));
@@ -129,7 +130,7 @@ depth_vid_masked(depth_vid_masked==0) = depth_vid_masked(depth_vid_masked==0) + 
 
 for t=1:Nframes
     imshow(depth_vid_masked(:,:,t));shg
-    xlabel(sprintf('\\rhoOF = %2.3f, \\C_OF = %2.3f\nafter quad prog method3', rhoOF, C_OF),'Interpreter','Tex');    
+    xlabel(sprintf('\\rho_{OF} = %2.3f, C_{OF} = %2.3f, radius around OF = %d\nafter quad prog method3 (bugfixed)', rhoOF, C_OF, dist_around_OF),'Interpreter','Tex');    
     caxis([min(qp_depth_vid (:)) max(qp_depth_vid (:))]);
     colormap(flipud(parula));shg
     drawnow
@@ -149,16 +150,16 @@ figure(himg)
 line([x1 x1 x2 x2 x1]', [y1 y2 y2 y1 y1]', 'color', 'b', 'linewidth', 3, 'linestyle', '-');
 
 stat_area_depths = qp_depth_vid(y1y2, x1x2,:);
-stat_area_depths_diff = 0*stat_area_depths;
-stat_area_depths_diff(:,:,end) = [];
-
-for t = 1:7
-    stat_area_depths_diff(:,:,t) = stat_area_depths(:,:,t+1) - stat_area_depths(:,:,t);
-end
-figure
-hist(stat_area_depths_diff(:));
-title('histogram of Z axis movement of a stationary area');
-shg
+% stat_area_depths_diff = 0*stat_area_depths;
+% stat_area_depths_diff(:,:,end) = [];
+% 
+% for t = 1:7
+%     c(:,:,t) = stat_area_depths(:,:,t+1) - stat_area_depths(:,:,t);
+% end
+% figure
+% hist(stat_area_depths_diff(:));
+% title('histogram of Z axis movement of a stationary area');
+% shg
 
 
 %% eval Z movement of a moving area
@@ -171,19 +172,48 @@ line([x1 x1 x2 x2 x1]', [y1 y2 y2 y1 y1]', 'color', 'y', 'linewidth', 3, 'linest
 
 
 moving_area_depths = qp_depth_vid(y1y2, x1x2,:);
-moving_area_depths_diff = 0*moving_area_depths;
-moving_area_depths_diff(:,:,end) = [];
-
-for t = 1:7
-    moving_area_depths_diff(:,:,t) = moving_area_depths(:,:,t+1) - moving_area_depths(:,:,t);
-end
-figure
-hist(moving_area_depths_diff(:));
-title('histogram of Z axis movement of a moving area');
-shg
+% moving_area_depths_diff = 0*moving_area_depths;
+% moving_area_depths_diff(:,:,end) = [];
+% 
+% for t = 1:7
+%     moving_area_depths_diff(:,:,t) = moving_area_depths(:,:,t+1) - moving_area_depths(:,:,t);
+% end
+% figure
+% hist(moving_area_depths_diff(:));
+% title('histogram of Z axis movement of a moving area');
+% shg
 
 % figure
 % hist(stat_area_depths_diff(:));
 
 
+
+%% 3D side view - inspired by http://stackoverflow.com/questions/22301571/plot-depth-image-in-matlab
+
+figure;
+for t = 1:size(depth_frames,3);
+
+depth = (qp_depth_vid(:,:,t));
+img = double((ppvid.frames{t}))/256;
+[y x] = ndgrid( 1:imsize(1), 1:imsize(2) );
+sel = depth > 0 ; % which points to plot
+% "flatten" the matrices for scatter plot
+x = x(:);
+y = y(:);
+img = reshape( img, [], size(img,3) );
+depth = -depth(:);
+% depth(:) = 1;
+scatter3( depth(sel), y(sel), x(sel), 20, img( sel, : ), 'filled' );
+colormap(gray);
+xlim([-4.5 -2.5]);
+fname_gif = sprintf('side_view_method3_rhoOF_%2.3f_COF_%2.3f_rOF_%d.gif', rhoOF, C_OF, dist_around_OF);
+xlabel(sprintf('depth\n\\rho_{OF} = %2.3f, C_{OF} = %2.3f, radius around OF = %d\nside view method3', rhoOF, C_OF, dist_around_OF),'Interpreter','Tex');
+ylabel('y');
+view(0, -90);shg
+drawnow
+pause(.5);
+save_animated_gif_frame(fname_gif, t==1);
+end
+save_animated_gif_frame(fname_gif, false);
+save_animated_gif_frame(fname_gif, false);
 

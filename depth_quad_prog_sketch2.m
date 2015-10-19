@@ -1,6 +1,7 @@
 close all
 clear
 initdirs
+% maxNumCompThreads = 8*8
 %% This solver is for a single frame with a QP with Objective & constraints
 
 %%
@@ -33,9 +34,10 @@ beq = [sparse(Npairs,1); d];
 
 %%
 tic
-X = quadprog(H, f, [], [], Aeq, beq);
+[X,qpFVAL,qpEXITFLAG,qpOUTPUT] = quadprog(H, f, [], [], Aeq, beq);
 toc
-
+qpEXITFLAG
+qpOUTPUT
 %%
 figure
 imshowpair(reshape(d/max(d), 240, 320), reshape(X((end-Nimg+1):end)/max(X((end-Nimg+1):end)), 240, 320), 'montage');

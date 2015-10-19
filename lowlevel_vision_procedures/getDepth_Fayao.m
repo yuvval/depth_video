@@ -1,4 +1,4 @@
-function [depths_superpxl, depths_pxl] = getDepth_Fayao(img_data, depth_homedir)
+function [depths_superpxl, depths_pxl, sp_info] = getDepth_Fayao(img_data, depth_homedir)
 
 if nargin < 2
     depth_homedir = '~/externals';
