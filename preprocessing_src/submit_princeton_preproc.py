@@ -21,7 +21,7 @@ for k in range(45, 60):
 for k in range(60, 75):
     Jobs += [("ctx11", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
 
-for k in range(75, 96):
+for k in range(75, 95):
     Jobs += [("ctx17", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
 
 
