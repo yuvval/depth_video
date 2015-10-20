@@ -5,7 +5,7 @@ prepr_params = dict();
 
 video_names = submit_jobs_matlab.runBash('ls /cortex/data/video/princeton_tracking_RGBD/EvaluationSet/').split()
 
-prepr_params['fayao.clgtv'] = """struct('depth_method', 'fayao', 'opflow_method', 'CLGTV', 'sample_interval', {iv})"""
+prepr_params['fayao.clgtv'] = """struct('depth_method', 'fayao', 'opflow_method', 'CLGTV', 'sample_interval', {iv}, 'scale_to_resolution', [240 320])"""
 run_prms = "preprocess_wrapper('princeton', '{vid_name}', {prepr_params})"
 Jobs = []
 
