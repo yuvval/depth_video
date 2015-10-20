@@ -15,22 +15,35 @@ dstd = std(rawest_depth_frames1(:));
 dmn = max(davg-dstd, 0);
 dmx = davg+dstd;
 
+tmp = ppvid.rgb_frames(:,:,:,1);
+n255 = 1; 
+if max(tmp(:)) > 1
+    n255 = 255;
+end
 for n=1:N
     subplot(2,2,1)
-    imshow(ppvid.rgb_frames(:,:,:,n)/255);
+    imshow(ppvid.rgb_frames(:,:,:,n)/n255);
 
-    subplot(2,2,2)
-    imshow(ppvid.gt_depth_frames(:,:,n));
-    caxis([dmn_gt dmx_gt])
-    title('ground truth depth');
+    if ~isempty(ppvid.gt_depth_frames)
+        subplot(2,2,2)
+        imshow(ppvid.gt_depth_frames(:,:,n));
+        caxis([dmn_gt dmx_gt])
+        title('ground truth depth');
+    end
     
     subplot(2,2,4)
     
     tmp = ppvid.depth_frames(:,:,n);
-    tmp(tmp > dmx) = 0;
+%     tmp(tmp > dmx) = 0;
     imshow(tmp);
-    caxis([dmn dmx])
+%     caxis([dmn dmx])
+    if n == 1
+        caxis('auto')
+        ax = gca;
+        my_clim = ax.CLim;
+    end
+    caxis(my_clim);
     title('raw depth estimation');
 
-    pause(0.5)
+    pause(0.1)
 end

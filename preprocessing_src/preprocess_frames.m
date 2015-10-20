@@ -14,6 +14,12 @@ t = 1; % Sampled frames counter.
 
 im=video(:,:,:,1);
 
+n255 = 1; 
+if max(im(:)) > 1
+    n255 = 255;
+end
+im = im/n255;
+
 switch prepr_params.depth_method
     case 'fayao'
         [depths_superpxl{1}, depths_pxl{1}, superpxl_frames{1}] ...
@@ -37,7 +43,8 @@ for k=1:Nframes
 
     if k <= (Nframes-1) % we can't eval OF for the last frame, so we skip it.
         %% Evaluate depth estimation
-        im2 = video (:,:,:,k+1);
+        im2 = video (:,:,:,k+1)/n255;
+
 %         im2gray = double(rgb2gray(im2));
         im2gray=mat2gray(im2);
         im2gray=rgb2gray(im2gray);

@@ -35,8 +35,14 @@ if do_preproc
                     get_frames_princeton(video_name, ...
                     prepr_params.sample_interval, scaled_resln);
             end
-            
-            
+        
+        case 'internal'
+            vid_fname = fullfile(proj_root_path, 'videos', video_name);
+            obj = VideoReader(vid_fname);
+            video = obj.read();
+            rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
+            gt_depth_frames = [];
+            camera_info = [];
             
         otherwise
             error('Unknown dataset')
