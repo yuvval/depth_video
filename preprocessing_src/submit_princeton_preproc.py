@@ -6,23 +6,29 @@ prepr_params = dict();
 video_names = submit_jobs_matlab.runBash('ls /cortex/data/video/princeton_tracking_RGBD/EvaluationSet/').split()
 
 prepr_params['fayao.clgtv'] = """struct('depth_method', 'fayao', 'opflow_method', 'CLGTV', 'sample_interval', {iv}, 'scale_to_resolution', [240 320])"""
-run_prms = "preprocess_wrapper('princeton', '{vid_name}', {prepr_params})"
-Jobs = []
 
 frame_smp_interval = 1
-for k in range(15):
-    Jobs += [("ctx06", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
-for k in range(15, 30):
-    Jobs += [("ctx07", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
-for k in range(30, 45):
-    Jobs += [("ctx08", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
-for k in range(45, 60):
-    Jobs += [("ctx10", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
-for k in range(60, 75):
-    Jobs += [("ctx11", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
 
-for k in range(75, 95):
-    Jobs += [("ctx17", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+run_prms = "preprocess_wrapper('internal', '{vid_name}', {prepr_params})"
+
+
+Jobs = []
+Jobs += [("ctx06", run_prms, 'approaching_toward.avi', prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+
+# run_prms = "preprocess_wrapper('princeton', '{vid_name}', {prepr_params})"
+# for k in range(15):
+#     Jobs += [("ctx06", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+# for k in range(15, 30):
+#     Jobs += [("ctx07", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+# for k in range(30, 45):
+#     Jobs += [("ctx08", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+# for k in range(45, 60):
+#     Jobs += [("ctx10", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+# for k in range(60, 75):
+#     Jobs += [("ctx11", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
+#
+# for k in range(75, 95):
+#     Jobs += [("ctx17", run_prms, video_names[k], prepr_params['fayao.clgtv'].format(iv=frame_smp_interval))]
 
 
 kill_flag = False

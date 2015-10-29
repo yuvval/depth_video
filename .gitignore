@@ -5,4 +5,7 @@ svm_mex601
 *.m~
 *.md~
 *.gif
+log_ctx*.txt
+ctx??_*.m
+*.pyc
 
