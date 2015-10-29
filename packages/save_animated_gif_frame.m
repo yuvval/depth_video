@@ -10,7 +10,7 @@ function save_animated_gif_frame(fname, is_first_frame, h_fig)
     %% saving as animated gif
     frame = getframe(h_fig);    
     im = frame2im(frame);    
-    [imind,cm] = rgb2ind(im,65536);    
+    [imind,cm] = rgb2ind(im,256);    
     if is_first_frame;        
         imwrite(imind,cm,fname,'gif', 'Loopcount',inf);        
     else        
