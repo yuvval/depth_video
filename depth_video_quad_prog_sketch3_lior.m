@@ -112,9 +112,10 @@ beq = [sparse(Npairs_intra+Npairs_inter,1); d;sparse(Nframes,1)];
 %%
 disp('zz');
 tic
-X = solveQuadWithEq(H,f, 0, Aeq, beq);
-% X = quadprog(H, f, [], [], Aeq, beq);
+Xlior = solveQuadWithEq(H,f, 0, Aeq, beq); % Lior version
+X = quadprog(H, f, [], [], Aeq, beq);  % matlab's version
 toc
+norm(X-Xlior)
 
 %% Visualization and post processing
 %% 
