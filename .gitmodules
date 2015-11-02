@@ -1,3 +1,6 @@
 [submodule "matpy"]
 	path = matpy
 	url = https://github.com/invenia/matpy
+[submodule "packages/matpyfs"]
+	path = packages/matpyfs
+	url = https://github.com/yuvval/matpyfs
