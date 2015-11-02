@@ -27,7 +27,6 @@ imgray=rgb2gray(imgray);
 
 imsize = size(imgray);
 depth_frames = nan(imsize(1), imsize(2), Nframes);
-depth_frames(:,:,1) = depths_pxl{1};
 
 for k=1:Nframes
     frames{t} = im;

@@ -1,4 +1,4 @@
-
+ls /
 switch get_domain()
     case 'cortex'
         homedir = '~';
@@ -20,8 +20,12 @@ addpath([proj_root_path sep 'lowlevel_vision_procedures/']);
 addpath([proj_root_path sep 'packages/']);
 addpath([proj_root_path sep 'packages/matpyfs']);
 addpath([proj_root_path sep 'optical_flow/']);
-addpath([proj_root_path sep 'optical_flow/algorithms/CLG-TV//']);
-addpath([proj_root_path sep 'preprocessing_src//']);
+addpath([proj_root_path sep 'optical_flow/algorithms/CLG-TV/']);
+addpath([proj_root_path sep 'preprocessing_src/']);
+addpath([proj_root_path sep 'depth_vid_est_src/']);
+
+%%
+addpath([homedir sep 'externals/matpyfs']);
 
 %%
 mcg_root = [homedir '/externals/mcg-2.0/pre-trained'];

@@ -47,7 +47,10 @@ sOFdiv = std(OFdiv_frames(:));
 sigmoid = @(x, a, b) (1./(1+exp(-a*(x-b))));
 
 %%
-for n=1:N
+h = figure('Visible','off');
+a = axes('Visible','off');
+
+for n=1:10
     subplot(2,9,1:4)
     rgb_frame = ppvid.rgb_frames(:,:,:,n)/n255;
     imshow(rgb_frame);
@@ -102,13 +105,13 @@ for n=1:N
     title('Divergence of optical flow')
     
     if ~isempty(fname_gif)
-        save_animated_gif_frame(fname_gif, n==1);        
+        save_animated_gif_frame(fname_gif, n==1, h);        
     end
     
     end
     pause(0.001)
 end
 if ~isempty(fname_gif)
-    save_animated_gif_frame(fname_gif, false);
-    save_animated_gif_frame(fname_gif, false);
+    save_animated_gif_frame(fname_gif, false, h);
+    save_animated_gif_frame(fname_gif, false, h);
 end

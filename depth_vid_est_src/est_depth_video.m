@@ -6,8 +6,6 @@ C_OF = depth_est_params.C_OF;
 rho_div = depth_est_params.rho_div;
 dist_around_OF = depth_est_params.dist_around_OF; % L1 radius around an OF pixel
 
-initdirs
-
 %%
 
 tmp = ppvid.depth_frames(:,:,1);
