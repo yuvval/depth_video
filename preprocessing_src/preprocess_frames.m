@@ -20,13 +20,6 @@ if max(im(:)) > 1
 end
 im = im/n255;
 
-switch prepr_params.depth_method
-    case 'fayao'
-        [depths_superpxl{1}, depths_pxl{1}, superpxl_frames{1}] ...
-            = getDepth_Fayao(im);
-    otherwise
-        error('Unknown depth method');
-end
 
 % imgray = double(rgb2gray(im));
 imgray=mat2gray(im);  			
@@ -49,14 +42,14 @@ for k=1:Nframes
         im2gray=mat2gray(im2);
         im2gray=rgb2gray(im2gray);
         
-        switch prepr_params.depth_method
-            case 'fayao'
-                [depths_superpxl{t+1}, depths_pxl{t+1}, ...
-                    superpxl_frames{t+1}] = getDepth_Fayao(im2);
-            otherwise
-                error('Unknown depth method');
-        end
-        depth_frames(:,:,t+1) = depths_pxl{t+1};
+        %        switch prepr_params.depth_method
+        %            case 'fayao'
+        %                [depths_superpxl{t+1}, depths_pxl{t+1}, ...
+        %   superpxl_frames{t+1}] = getDepth_Fayao(im2);
+        %            otherwise
+        %error('Unknown depth method');
+        %        end
+        %        depth_frames(:,:,t+1) = depths_pxl{t+1}; 
         
         %% Optical Flow
         switch prepr_params.opflow_method
@@ -75,6 +68,22 @@ for k=1:Nframes
     
     t=t+1;
 end
+
+% Evaluate depths
+
+switch prepr_params.depth_method
+  case 'fayao'
+    for t = 1:length(frames)
+        [depths_superpxl{t}, depths_pxl{t}, superpxl_frames{t}] ...
+            = getDepth_Fayao(frames{t});
+        depth_frames(:,:,t) = depths_pxl{t}; 
+    end % for k =1:length(frames)
+  case 'eigen'
+    res = matpyfs('test', frames, 'eigen_depth', './', './')
+  otherwise
+    error('Unknown depth method');
+end
+
 
 
 
