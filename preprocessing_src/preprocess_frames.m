@@ -84,7 +84,7 @@ switch prepr_params.depth_method
     funcargs.frames = frames;
     res = matpyfs('infer_depth_and_normals_frames_seq', funcargs, ...
                   'eigen_depth', [proj_root_path 'preprocessing_src'] ...
-                  , pythoncmd, './');
+                  , pythoncmd);
 
     depth_frames = shiftdim(res.arg0, 2);
 
