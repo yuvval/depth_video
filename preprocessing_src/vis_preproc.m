@@ -50,7 +50,7 @@ sigmoid = @(x, a, b) (1./(1+exp(-a*(x-b))));
 h = figure('Visible','off');
 a = axes('Visible','off');
 
-for n=1:10
+for n=1:N
     subplot(2,9,1:4)
     rgb_frame = ppvid.rgb_frames(:,:,:,n)/n255;
     imshow(rgb_frame);

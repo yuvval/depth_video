@@ -1,13 +1,12 @@
-ls /
 switch get_domain()
     case 'cortex'
-        homedir = '~';
-        datasets_base = '/cortex/data/video';
+        homedir = '/home/lab/yuvval';
+        datasets_base = '/cortex/data/video/';
         preproc_base = '/cortex/users/yuvval/depth_vl/preproc/';
     case 'csail'
-        homedir = '~';
-        datasets_base = '~/data/video';
-        preproc_base = '~/depth_vl/preproc/';
+        homedir = '/afs/csail.mit.edu/u/y/yuvval';
+        datasets_base = [homedir '/data/video/'];
+        preproc_base = [homedir '/depth_vl/preproc/'];
 end
 
 sep = filesep; % equals '/' in linux
