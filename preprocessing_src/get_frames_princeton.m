@@ -2,6 +2,8 @@ function [rgb_frames, depth_frames, ...
     scaled_rgb_frames, scaled_depth_frames, camera_info] = ...
     get_frames_princeton(video_name, sample_interval, scale_to_resolution, base_path)
 
+initdirs
+
 if nargin <2
     sample_interval = 1;
 end
@@ -11,7 +13,7 @@ if nargin <3
 end
 
 if nargin <4
-    base_path = ['/cortex/data/video/princeton_tracking_RGBD'];
+    base_path = [datasets_base 'princeton_tracking_RGBD'];
 end
 
 load([base_path '/EvaluationSet/' video_name '/frames']);

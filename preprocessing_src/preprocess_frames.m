@@ -1,6 +1,7 @@
 function [depth_frames, opflow_uvframes, superpxl_frames] = ...
     preprocess_frames(rgb_frames, prepr_params)
 
+initdirs
 % frame_sample_interval = prepr_params.sample_interval;
 video = rgb_frames;
 
@@ -78,7 +79,14 @@ switch prepr_params.depth_method
         depth_frames(:,:,t) = depths_pxl{t}; 
     end % for k =1:length(frames)
   case 'eigen'
-    res = matpyfs('test', frames, 'eigen_depth', './', './')
+    system(['source ' proj_root_path 'theano-env/bin/activate'])
+    pythoncmd = 'THEANO_FLAGS=floatX=float32,device=gpu0 python'
+    funcargs.frames = frames;
+    res = matpyfs('infer_depth_and_normals_frames_seq', funcargs, ...
+                  'eigen_depth', [proj_root_path 'preprocessing_src'] ...
+                  , pythoncmd, './');
+    
+
   otherwise
     error('Unknown depth method');
 end
