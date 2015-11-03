@@ -85,7 +85,8 @@ switch prepr_params.depth_method
     res = matpyfs('infer_depth_and_normals_frames_seq', funcargs, ...
                   'eigen_depth', [proj_root_path 'preprocessing_src'] ...
                   , pythoncmd, './');
-    
+
+    depth_frames = shiftdim(res.arg0, 2);
 
   otherwise
     error('Unknown depth method');

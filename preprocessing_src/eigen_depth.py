@@ -1,9 +1,10 @@
 import os
 import sys
-import numpy as np
+from numpy import *
 
 from PIL import Image
-
+import ipdb
+ipdb.launch_ipdb_on_exception()
 
 def test(n = 5):
     print 'Test\n'
@@ -43,15 +44,16 @@ def infer_depth_and_normals_frames_seq(
 
     nn = load_depth_nn(model_name, nn_path)
 
-    frames = frames.tolist() # this originated from a matlab cell array. convert it to a list
-    Nframes = len(frames)
+    imgs = frames.tolist() # this originated from a matlab cell array. convert it to a list
+    Nimgs = len(imgs[0][0][0])
+    # print 'Nimgs = {Nimgs}\n'.format(**locals())
+    est_depth_imgs, est_normals_imgs = [None]*Nimgs, [None]*Nimgs
 
-    est_depth_frames, est_normals_frames = [None]*Nframes, [None]*Nframes
+    for k in range(Nimgs):
+        img  = frames[0][0][0][k].reshape(1,240,320,3)*255
+        est_depth_imgs[k], est_normals_imgs[k] = infer_depth_and_normals(nn, img.astype(uint8))
 
-    for k in range(Nframes):
-        img  = np.asarray(frames[k]).reshape((1, 240, 320, 3))
-        est_depth_frames[k], est_normals_frames[k] = infer_depth_and_normals(nn, img)
-
-    est_depth_frames, est_normals_frames
+    # est_depth_imgs, est_normals_imgs = infer_depth_and_normals(nn, imgs)
+    return est_depth_imgs, est_normals_imgs
 
         
