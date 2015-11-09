@@ -5,8 +5,8 @@ switch get_domain()
         preproc_base = '/cortex/users/yuvval/depth_vl/preproc/';
     case 'csail'
         homedir = '/afs/csail.mit.edu/u/y/yuvval';
-        datasets_base = [homedir '/data/video/'];
-        preproc_base = [homedir '/depth_vl/preproc/'];
+        datasets_base = ['/storage/yuvval/data/video/'];
+        preproc_base = ['/storage/yuvval/depth_vl/preproc/'];
 end
 
 sep = filesep; % equals '/' in linux

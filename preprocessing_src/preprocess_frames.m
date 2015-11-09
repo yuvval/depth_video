@@ -21,6 +21,12 @@ if max(im(:)) > 1
 end
 im = im/n255;
 
+frames_tmp = {};
+if strcmp(prepr_params.depth_method, 'eigen')
+    frames_tmp{1} = im;
+    im = imresize(im, [109 147]);
+end % if strcmp
+
 
 % imgray = double(rgb2gray(im));
 imgray=mat2gray(im);  			
@@ -32,11 +38,14 @@ depth_frames = nan(imsize(1), imsize(2), Nframes);
 for k=1:Nframes
     frames{t} = im;
     
-    
 
     if k <= (Nframes-1) % we can't eval OF for the last frame, so we skip it.
         %% Evaluate depth estimation
         im2 = video (:,:,:,k+1)/n255;
+        if strcmp(prepr_params.depth_method, 'eigen')
+            frames_tmp{t+1} = im2;
+            im2 = imresize(im2, [109 147]);
+        end % if strcmp
 
 %         im2gray = double(rgb2gray(im2));
         im2gray=mat2gray(im2);
@@ -80,8 +89,8 @@ switch prepr_params.depth_method
     end % for k =1:length(frames)
   case 'eigen'
     system(['source ' proj_root_path 'theano-env/bin/activate'])
-    pythoncmd = 'THEANO_FLAGS=floatX=float32,device=gpu0 python'
-    funcargs.frames = frames;
+    pythoncmd = 'THEANO_FLAGS=floatX=float32,device=gpu1 python'
+    funcargs.frames = frames_tmp;
     res = matpyfs('infer_depth_and_normals_frames_seq', funcargs, ...
                   'eigen_depth', [proj_root_path 'preprocessing_src'] ...
                   , pythoncmd);
