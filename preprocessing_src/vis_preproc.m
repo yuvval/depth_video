@@ -33,8 +33,8 @@ if max(tmp(:)) > 1
 end
 
 %%
-imsize = size(tmp(:,:,1));
-[OFdiv_frames] = deal(zeros([imsize N]));
+%imsize = size(tmp(:,:,1));
+[OFdiv_frames] = deal(zeros([size(ppvid.opflow_frames{1}(:,:,1)) N]));
 for n=1:N
     if n<N
         uOF = ppvid.opflow_frames{n}(:,:,1);
@@ -53,6 +53,10 @@ a = axes('Visible','off');
 for n=1:N
     subplot(2,9,1:4)
     rgb_frame = ppvid.rgb_frames(:,:,:,n)/n255;
+    if is_in_str('eigen', fname_gif)
+        rgb_frame = imresize(rgb_frame, [109, 147]);
+    end % if is_in_str('eigen'..
+
     imshow(rgb_frame);
     title(video_name,'interpreter','none');
 

@@ -43,6 +43,16 @@ if do_preproc
             rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
             gt_depth_frames = [];
             camera_info = [];
+
+        case 'mat'
+            vid_fname = fullfile(proj_root_path, 'videos', video_name);
+            load(vid_fname)
+            if ~exist('video');
+                video = frames;
+            end
+            rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
+            gt_depth_frames = [];
+            camera_info = [];
             
         otherwise
             error('Unknown dataset')
