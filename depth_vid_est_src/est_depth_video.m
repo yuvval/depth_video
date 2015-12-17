@@ -3,7 +3,9 @@ if mxFrameID == -1
     mxFrameID = size(ppvid.depth_frames,3);
 end % if mxFrameID == -1
 
-
+C_intra = depth_est_params.C_intra;
+C_tact = depth_est_params.C_tact;
+rho_tact = depth_est_params.rho_tact;
 rho_OF = depth_est_params.rho_OF;
 C_OF = depth_est_params.C_OF;
 rho_div = depth_est_params.rho_div;
@@ -57,6 +59,8 @@ for t=1:(Nframes-1)
     orig_ids_map(1:n,t) = all_neigh_pairs_inds(:,1) + (t-1)*Nimg;
     OF_ids_map(1:n,t) = t*Nimg + all_neigh_pairs_inds(:,2);
     OFmag(1:n,t) = all_neigh_L2_dist;
+
+
 end
 orig_ids_map = orig_ids_map(:);
 OF_ids_map = OF_ids_map(:);
@@ -137,6 +141,104 @@ OFweights = C_OF*exp((-1/rho_OF)*OFmag(:).^2);
 
 % OFweights(OFweights<(mean(OFweights)*1e-3)) = 0;
 
+%% Adding a prior that object who touch should have an avg same
+%% depth (up to a slack that we minimize)
+
+
+
+Dtact = [];
+Stact = [];
+Htact = [];
+btact = [];
+
+%% IMPORTANT!! Currectly only relevant to tactile pairs!! 
+% To upgrade to support more complex tactile relationship we need
+% to cluster and traverse the tactile relationships graphs with BFS/DFS
+if isfield(depth_est_params, 'detect_masks')
+    detect_masks = depth_est_params.detect_masks;
+    tactile_inds = depth_est_params.tactile_inds;
+
+    for t=1:(Nframes) % TODO: ?? should it be (Nframes - 1)??
+        [rx, ry, cx, cy, umask, stdmask]  = deal({});
+        dpframe = depth_frames(:,:,t);
+        
+        Nmasks = length(detect_masks{t});
+        % tactile_neigh_inds = get_tactile_neighbours(detect_masks{t}, )
+
+        [tact1, tact2] = find(tactile_inds(:,:,t));
+        Ntact = length(tact1);
+        for m = 1:Nmasks
+            % prepare tie avg depths per mask 
+            s = sum(detect_masks{t}{m},1);
+            rx{m} = nnz(s/max(s)>0.5)/2; %approx X radius of a box
+            s = sum(detect_masks{t}{m},2);
+            ry{m} = nnz(s/max(s)>0.5)/2; %approx Y radius of a box
+            
+            [r,c] = find(detect_masks{t}{m}==1);
+            cx{m} = mean(c);
+            cy{m} = mean(r);
+            
+            umask{m} = mean(dpframe(detect_masks{t}{m}==1));
+            stdmask{m} = std(dpframe(detect_masks{t}{m}==1));
+            
+            
+%             Dtact(end+1,1:Npxl) = sparse(1,Npxl);
+%             mask_inds = find(detect_masks{t}{m}(:)) + (t-1)*Nimg;
+%             Dtact(end,mask_inds) = 1;
+        end
+
+        for nt = 1:Ntact
+            % check if there is a tactile interaction between 2 detection masks
+            if tact1(nt)~=tact2(nt) % if yes
+                ujoint = mean([umask{tact1(nt)} umask{tact2(nt)}]);
+                % for each pixel k in those masks we add a constraint: 
+                % dk = ujoint + sk, where we add f(std{m})*sk^2 to the objective
+                
+                m = tact1(nt);
+                stdx = stdmask{m}*rx{m}/2; % setting box boundary to 2*stddev
+                stdy = stdmask{m}*ry{m}/2; % setting box boundary to 2*stddev
+                msk = detect_masks{t}{m}==1;
+                [r,c] = find(msk);
+                
+                mask_inds = find(msk(:)) + (t-1)*Nimg;
+                Ntact = length(mask_inds);
+                
+%                 Htact1 = (r.^2/stdy^2 + c.^2/stdx^2); % TODO: double check if not need to commute r-c
+                Htact1 = exp((-1)*((r-cy{m}).^2/stdy^2 + (c-cx{m}).^2/stdx^2)/rho_tact); % TODO: double check if not need to commute r-c
+                Dtact1 = sparse(1:Ntact, mask_inds, ones(Ntact,1), Ntact,Npxl);
+                btact1 = ones(Ntact,1)*ujoint;
+                
+                
+                m = tact2(nt);
+                stdx = stdmask{m}*rx{m}/2; % setting box boundary to 2*stddev
+                stdy = stdmask{m}*ry{m}/2; % setting box boundary to 2*stddev
+                msk = detect_masks{t}{m}==1;
+                [r,c] = find(msk);
+                
+                mask_inds = find(msk(:)) + (t-1)*Nimg;
+                Ntact = length(mask_inds);
+                
+%                 Htact2 = (r.^2/stdy^2 + c.^2/stdx^2); % TODO: double check if not need to commute r-c
+                Htact2 = exp((-1)*((r-cy{m}).^2/stdy^2 + (c-cx{m}).^2/stdx^2)/rho_tact); % TODO: double check if not need to commute r-c
+                Dtact2 = sparse(1:Ntact, mask_inds, ones(Ntact,1), Ntact,Npxl);
+                btact2 = ones(Ntact,1)*ujoint;
+                
+                Htact = [Htact ; Htact1; Htact2];
+                Dtact = [Dtact; Dtact1; Dtact2];
+                btact= [btact; btact1; btact2];         
+            end
+        end
+%         Stact_curr = sparse(Stact_curr);
+%         Stact = blkdiag(Stact,Stact_curr);
+
+    end
+end
+% Nmasks = size(Stact, 1);
+Ntact = length(btact);
+Stact = speye(Ntact);
+Htact = double(Htact)*C_tact;
+btact = double(btact);
+
 
 Gmagvec = Gmag_frames(:);
 
@@ -146,7 +248,7 @@ Npairs_inter = length(OFweights);
 % Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
 
 Npxl = length(d);
-Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2))); OFweights(:); zeros(Npxl,1);0];
+Hdiag = [ones(Npxl,1) ; C_intra*(1-Gmagvec(all_pairs_intra(:,2))); OFweights(:); sparse(Htact) ; zeros(Npxl,1);0];
 %Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2))); ...
 %OFweights(:); zeros(Npxl,1);0;zeros(size(Sdiv,2),1)]; % with OF divergence
 % Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2)));  zeros(Npxl,1)];
@@ -164,18 +266,18 @@ Si = sparse(1:Npxl, 1:1:Npxl, -ones(Npxl,1));
 Di = sparse(1:Npxl, 1:1:Npxl, ones(Npxl,1));
 
 Dix = sparse(kron(eye(Nframes), ones(1, Nimg)));
-Dx = sparse([sparse(Npairs_intra + Npairs_inter+Npxl,1); ones(Nframes,1) ]);
+Dx = sparse([sparse(Npairs_intra + Npairs_inter+Ntact+Npxl,1); ones(Nframes,1) ]);
 %Dx = sparse([sparse(Npairs_intra + Npairs_inter+Npxl,1); ...
 %ones(Nframes,1) ; sparse(Nmasks,1)]); % with OF divergence
 % Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si] [Sij;sparse(Npairs_inter+Npxl, Npairs_intra)] [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter)] [ DiDj ; DmDn; Di] ] ;
-Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si;sparse(Nframes, Npxl)] [Sij;sparse(Npairs_inter+Npxl, Npairs_intra);sparse(Nframes, Npairs_intra)] [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter); sparse(Nframes, Npairs_inter)] [ DiDj ; DmDn; Di; Dix] Dx] ;
+Aeq = [ [sparse(Npairs_intra + Npairs_inter+Ntact, Npxl);Si;sparse(Nframes, Npxl)] [Sij;sparse(Npairs_inter+Ntact+Npxl, Npairs_intra);sparse(Nframes, Npairs_intra)] [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Ntact+Npxl, Npairs_inter); sparse(Nframes, Npairs_inter)] [sparse(Npairs_intra+Npairs_inter, Ntact);Stact;sparse(Npxl+Nframes,Ntact)] [ DiDj ; DmDn; Dtact;Di; Dix] Dx] ;
 % Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si;sparse(Nframes+Nmasks, Npxl)] ...
 %     [Sij;sparse(Npairs_inter+Npxl, Npairs_intra);sparse(Nframes+Nmasks, Npairs_intra)] ...
 %     [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter); sparse(Nframes+Nmasks, Npairs_inter)] ...
 %     [ DiDj ; DmDn; Di; Dix ; Dij_div ] Dx ...
 %     [sparse(Npairs_intra + Npairs_inter + Npxl + Nframes, size(Sdiv,2)) ; Sdiv] ] ;
 
-beq = [sparse(Npairs_intra+Npairs_inter,1); d;sparse(Nframes,1)];
+beq = [sparse(Npairs_intra+Npairs_inter,1); btact; d;sparse(Nframes,1)];
 %beq = [sparse(Npairs_intra+Npairs_inter,1); ...
 %d;sparse(Nframes+Nmasks,1)]; % with OF divergence
 
