@@ -1,4 +1,4 @@
-function est_depth_vid = est_depth_video(ppvid, mnFrameID, mxFrameID, depth_est_params)
+function est_depth_vid = est_depth_video_sp(ppvid, mnFrameID, mxFrameID, depth_est_params)
 if mxFrameID == -1
     mxFrameID = size(ppvid.depth_frames,3);
 end % if mxFrameID == -1

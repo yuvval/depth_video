@@ -17,6 +17,7 @@ end
 
 addpath([proj_root_path sep 'lowlevel_vision_procedures/']);
 addpath([proj_root_path sep 'packages/']);
+addpath([proj_root_path sep 'packages/SLIC_mex/']);
 addpath([proj_root_path sep 'packages/matpyfs']);
 addpath([proj_root_path sep 'optical_flow/']);
 addpath([proj_root_path sep 'optical_flow/algorithms/CLG-TV/']);

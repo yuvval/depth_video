@@ -1,4 +1,4 @@
-function [depth_frames, opflow_uvframes, superpxl_frames] = ...
+function [depth_frames, opflow_uvframes, superpxl_frames, depths_superpxl, n_superpxl] = ...
     preprocess_frames(rgb_frames, prepr_params)
 
 initdirs
@@ -8,7 +8,7 @@ video = rgb_frames;
 %% Iterate on frames.
 % [frames, depths_superpxl, depths_pxl, superpxl_frames, edges, opflow_uvframes, Gx, Gy] = deal({});
 
-[opflow_uvframes, superpxl_frames, depths_superpxl, depths_pxl] = deal({});
+[opflow_uvframes, superpxl_frames, n_superpxl, depths_superpxl, depths_pxl] = deal({});
 Nframes = size(video,4);
 
 t = 1; % Sampled frames counter.
@@ -22,9 +22,13 @@ end
 im = im/n255;
 
 frames_tmp = {};
-if strcmp(prepr_params.depth_method, 'eigen')
+if strcmp(prepr_params.depth_method, 'eigen') && ~isfield(prepr_params, 'superpixels')
     frames_tmp{1} = im;
     im = imresize(im, [109 147]);
+else
+    frames_tmp{1} = im;
+    [superpxl_frames{1}, n_superpxl{1}] = slicomex(int8(im*255),prepr_params.n_superpixels);
+    superpxl_frames{1} = superpxl_frames{1} +1; % start labeling sp from 1 (instead of 0)
 end % if strcmp
 
 
@@ -42,9 +46,13 @@ for k=1:Nframes
     if k <= (Nframes-1) % we can't eval OF for the last frame, so we skip it.
         %% Evaluate depth estimation
         im2 = video (:,:,:,k+1)/n255;
-        if strcmp(prepr_params.depth_method, 'eigen')
+        if strcmp(prepr_params.depth_method, 'eigen')  && ~isfield(prepr_params, 'superpixels')
             frames_tmp{t+1} = im2;
             im2 = imresize(im2, [109 147]);
+        else
+            frames_tmp{t+1} = im2;
+            [superpxl_frames{t+1}, n_superpxl{t+1}] = slicomex(int8(im2*255),prepr_params.n_superpixels);
+            superpxl_frames{t+1} = superpxl_frames{t+1} +1; % start labeling sp from 1 (instead of 0)
         end % if strcmp
 
 %         im2gray = double(rgb2gray(im2));
@@ -96,6 +104,20 @@ switch prepr_params.depth_method
                   , pythoncmd);
 
     depth_frames = shiftdim(res.arg0, 2);
+    
+    if isfield(prepr_params, 'superpixels')
+        % Iterate on all the frames and assign mean depth to each superpxl.
+        for t = 1:length(frames) 
+            depth_frame = depth_frames(:,:,t);
+            superpxl_frame = double(superpxl_frames{t});
+            depth_frame = imresize(depth_frame, size(superpxl_frame));            
+            depths_superpxl{t} = nan(n_superpxl{t},1);            
+            for k = 1:n_superpxl{t}
+                depths_superpxl{t}(k) = mean(depth_frame(superpxl_frame==k));
+            end
+            assert(all(~isnan(depths_superpxl{t}(:))));
+        end        
+    end
 
   otherwise
     error('Unknown depth method');
