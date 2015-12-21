@@ -3,6 +3,8 @@ if mxFrameID == -1
     mxFrameID = size(ppvid.depth_frames,3);
 end % if mxFrameID == -1
 
+C_intra = depth_est_params.C_intra;
+rho_intra = depth_est_params.rho_intra;
 C_tact = depth_est_params.C_tact;
 rho_tact = depth_est_params.rho_tact;
 rho_OF = depth_est_params.rho_OF;
@@ -87,7 +89,26 @@ OFweights = C_OF*OF_const_mag.^(1);
 % OFweights = C_OF*exp((-1/rho_OF)*OFmag(:).^2);
 % Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
 
-%% Adding a costraint that mean depth of super pixels with 50% lowest OF
+% Adding a constraint between adjacent superpixels weighing the
+% edge between them
+n=0;
+[all_sp_pairs_intra, weighs_sp_intra] = deal([]);
+for t=1:(Nframes)
+    tic
+    [all_sp_pairs_intra_curr, weighs_sp_intra_curr] = ...
+        get_super_pixels_intra_weighs(ppvid.rgb_frames(:,:,:,t), ...
+                                      ppvid.superpxl_frames{t});
+    all_sp_pairs_intra = [all_sp_pairs_intra ; n+ ...
+                        all_sp_pairs_intra_curr];
+    weighs_sp_intra = [ weighs_sp_intra ; weighs_sp_intra_curr];
+    n = n + double(ppvid.n_superpxl{t});
+    toc
+end
+
+weighs_sp_intra = C_intra*exp((-1/(rho_intra^2*var(weighs_sp_intra)))*weighs_sp_intra.^2);
+
+
+%% Adding a constraint that mean depth of super pixels with 50% lowest OF
 % should be equal (up to a slack)
 
 Dmean_d = spalloc(Nframes, Npxl, Npxl);
@@ -216,14 +237,15 @@ Ntact = length(btact);
 % Npairs_intra = length(all_pairs_intra(:,1));
 Npairs_inter = length(OFweights);
 % Winter = sparse(orig_ids_map, OF_ids_map(:), OFweights, N, N);
-Smean_d = sparse([sparse(Npairs_inter+Ntact,1); ones(Nframes,1); sparse(Npxl,1) ]);
+% Smean_d = sparse([sparse(Npairs_inter+Ntact,1); ones(Nframes,1); sparse(Npxl,1) ]);
 
 % Smean_d = [];
 % Dmean_d = [];
 % Nframes = 0;
 
 % Hdiag = [ones(Npxl,1) ; OFweights(:); sparse(Htact) ; zeros(Npxl,1);0];
-Hdiag = [ones(Npxl,1) ; OFweights(:); sparse(Htact) ; 0; zeros(Npxl,1)];
+% Hdiag = [ones(Npxl,1) ; OFweights(:); sparse(Htact) ; 0; zeros(Npxl,1)];
+Hdiag = [weighs_sp_intra(:); OFweights(:); sparse(Htact) ; 0; ones(Npxl,1) ;zeros(Npxl,1)];
 % Hdiag = [ones(Npxl,1) ; OFweights(:); sparse(Htact) ;  zeros(Npxl,1)];
 %Hdiag = [ones(Npxl,1) ; (1-Gmagvec(all_pairs_intra(:,2))); ...
 %OFweights(:); zeros(Npxl,1);0;zeros(size(Sdiv,2),1)]; % with OF divergence
@@ -232,8 +254,10 @@ Nunknowns = length(Hdiag);
 H = sparse(1:Nunknowns, 1:Nunknowns, Hdiag);
 f = zeros(Nunknowns,1);
 
-% DiDj = sparse(1:Npairs_intra, all_pairs_intra(:,1), ones(Npairs_intra, 1)) + sparse(1:Npairs_intra, all_pairs_intra(:,2), -ones(Npairs_intra, 1));
-% Sij = sparse(1:Npairs_intra, 1:Npairs_intra, ones(Npairs_intra,1));
+Npairs_intra = length(all_sp_pairs_intra);
+
+DiDj = sparse(1:Npairs_intra, all_sp_pairs_intra(:,1), ones(Npairs_intra, 1)) + sparse(1:Npairs_intra, all_sp_pairs_intra(:,2), -ones(Npairs_intra, 1), Npairs_intra, Npxl);
+Sij = sparse(1:Npairs_intra, 1:Npairs_intra, ones(Npairs_intra,1));
 
 DmDn = sparse(1:Npairs_inter, orig_ids_map(:), ones(Npairs_inter, 1), Npairs_inter, Npxl) + sparse(1:Npairs_inter, OF_ids_map(:), -ones(Npairs_inter, 1), Npairs_inter, Npxl);
 Smn = sparse(1:Npairs_inter, 1:Npairs_inter, ones(Npairs_inter,1));
@@ -248,7 +272,11 @@ Di = sparse(1:Npxl, 1:1:Npxl, ones(Npxl,1));
 %Dx = sparse([sparse(Npairs_intra + Npairs_inter+Npxl,1); ...
 %ones(Nframes,1) ; sparse(Nmasks,1)]); % with OF divergence
 % Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si] [Sij;sparse(Npairs_inter+Npxl, Npairs_intra)] [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter)] [ DiDj ; DmDn; Di] ] ;
-Aeq = [ [sparse(Npairs_inter+Ntact, Npxl);sparse(Nframes, Npxl);Si] [Smn ;sparse(Ntact+Nframes, Npairs_inter); sparse(Npxl, Npairs_inter)] [sparse(Npairs_inter, Ntact);Stact;sparse(Npxl+Nframes,Ntact)] Smean_d [ DmDn; Dtact;Dmean_d;Di]] ;
+% Aeq = [ [sparse(Npairs_inter+Ntact, Npxl);sparse(Nframes, Npxl);Si] ...
+%         [Smn ;sparse(Ntact+Nframes, Npairs_inter); sparse(Npxl, Npairs_inter)] [sparse(Npairs_inter, Ntact);Stact;sparse(Npxl+Nframes,Ntact)] Smean_d [ DmDn; Dtact;Dmean_d;Di]] ;
+
+Aeq = [blkdiag(Sij, Smn, Stact, ones(Nframes,1), Si)  [ DiDj; DmDn; Dtact;Dmean_d;Di]];
+
 % Aeq = [ [sparse(Npairs_intra + Npairs_inter, Npxl);Si;sparse(Nframes+Nmasks, Npxl)] ...
 %     [Sij;sparse(Npairs_inter+Npxl, Npairs_intra);sparse(Nframes+Nmasks, Npairs_intra)] ...
 %     [sparse(Npairs_intra, Npairs_inter); Smn ;sparse(Npxl, Npairs_inter); sparse(Nframes+Nmasks, Npairs_inter)] ...
@@ -256,7 +284,7 @@ Aeq = [ [sparse(Npairs_inter+Ntact, Npxl);sparse(Nframes, Npxl);Si] [Smn ;sparse
 %     [sparse(Npairs_intra + Npairs_inter + Npxl + Nframes, size(Sdiv,2)) ; Sdiv] ] ;
 
 % beq = [sparse(Npairs_inter,1); btact; d;sparse(Nframes,1)];
-beq = [sparse(Npairs_inter,1); btact; sparse(Nframes,1); d];
+beq = [sparse(Npairs_intra + Npairs_inter,1); btact; sparse(Nframes,1); d];
 %beq = [sparse(Npairs_intra+Npairs_inter,1); ...
 %d;sparse(Nframes+Nmasks,1)]; % with OF divergence
 

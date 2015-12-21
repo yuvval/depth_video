@@ -77,6 +77,9 @@ for t = 1:size(boxes{1},1)
 end
 
 %%
+depth_est_params.C_intra = 1;
+depth_est_params.rho_intra = 1;
+
 depth_est_params.C_OF = 1;
 
 % depth_est_params.detect_masks = masks;
@@ -94,9 +97,11 @@ end
 save(sprintf('~/tmp/%s_est_sp_d.mat', vidname), 'dvid_sp', 'mnFrameID',...
     'mxFrameID', 'interval', 'vidname', 'depth_est_params')
 
-fname_gif = sprintf('~/tmp/%s_est_d.gif', vidname);
+fname_gif = sprintf('~/www/figs/%s_est_d_intra_C_%f_std_%f.gif', vidname, ...
+                    depth_est_params.C_intra, depth_est_params.rho_intra);
 
 %%
 vis_dep_est(ppvid, vidname, dvid, mnFrameID, ...
-    mxFrameID, fname_gif, true)
+    mxFrameID, fname_gif, false)
 %     mxFrameID, fname_gif, true, boxes)
+scp_file(fname_gif);

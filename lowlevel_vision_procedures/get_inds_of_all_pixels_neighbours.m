@@ -96,13 +96,20 @@ inds = sub2ind(siz, all_neighbours_sub(:,2), all_neighbours_sub(:,3));
 all_neigh_pairs_inds = [all_neighbours_sub(:,1) , inds];
 all_neigh_L2_dist = all_neighbours_sub(:,4);
 
+
 % repeat for all frames, by duplicating and adding a respective offset  
 % (of number of pixels per image) per duplication
 N_neighbours_per_frame = size(all_neigh_pairs_inds,1);
-Nframes = siz(3);
+
+if numel(siz) == 2
+    Nframes =1;
+else
+    Nframes = siz(3);
+end
 all_neigh_pairs_inds = repmat(all_neigh_pairs_inds, Nframes,1);
 all_neigh_L2_dist = repmat(all_neigh_L2_dist, Nframes,1);
 for t=2:Nframes
-all_neigh_pairs_inds(((t-1)*N_neighbours_per_frame + 1):(t*N_neighbours_per_frame),:) ...
-    = (t-1)*Nimg + all_neigh_pairs_inds(((t-1)*N_neighbours_per_frame + 1):(t*N_neighbours_per_frame),:);
+    all_neigh_pairs_inds(((t-1)*N_neighbours_per_frame + 1):(t*N_neighbours_per_frame),:) ...
+        = (t-1)*Nimg + all_neigh_pairs_inds(((t-1)*N_neighbours_per_frame + 1):(t*N_neighbours_per_frame),:);
 end
+
