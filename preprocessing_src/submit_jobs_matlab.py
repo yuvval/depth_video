@@ -62,7 +62,7 @@ def submit_jobs(Jobs, ignore_git  = False):
         with open(matlab_script_fname, "w") as f:
             f.write(matlab_script_txt + "\n")
 
-        cmd  = 'ssh ' + job[0] + ' " cd ~/depth_video/preprocessing_src/; ./run_bg_matlab_jobs_single_machine.sh ' + matlab_script_fname + '"'
+        cmd  = 'ssh ' + job[0] + ' " cd ~/depth_video/preprocessing_src/; source ../theano-env/bin/activate; ./run_bg_matlab_jobs_single_machine.sh ' + matlab_script_fname + '"'
 
         print cmd
         print runBash(cmd)
