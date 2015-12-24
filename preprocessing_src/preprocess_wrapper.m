@@ -11,10 +11,12 @@ fullfname = fullfile(fullpath, fname);
 
 do_force = 0;
 preproc_vars = ...
-    {'rgb_frames', 'depth_frames', 'opflow_frames' 'superpxl_frames', ....
+    {'rgb_frames', 'depth_frames', 'depth_holes_mask_frames', ... 
+     'opflow_frames' 'superpxl_frames', ....
     'depths_superpxl', 'n_superpxl', 'gt_depth_frames', 'camera_info'};
 [do_preproc, ...
-    rgb_frames, depth_frames, opflow_frames, superpxl_frames, ...
+    rgb_frames, depth_frames, depth_holes_mask_frames, ...
+    opflow_frames, superpxl_frames, ...
     depths_superpxl, n_superpxl, gt_depth_frames, camera_info] ...
     = cond_load([fullfname '.mat'], do_force, preproc_vars{1:end});
 
@@ -35,7 +37,16 @@ if do_preproc
                     get_frames_princeton(video_name, ...
                     prepr_params.sample_interval, scaled_resln);
             end
-        
+            depth_holes_mask_frames = [];
+
+        case 'msrv3d'
+            scaled_resln = take_from_struct(prepr_params, 'scale_to_resolution', []);
+            dataDir = video_name.dir;
+            clipIndex = video_name.idx;
+            [rgb_frames, gt_depth_frames, ...
+             depth_holes_mask_frames, clip_info] = ...
+            get_frames_msrv3d(dataDir, clipIndex, prepr_params.sample_interval, scaled_resln);
+
         case 'internal'
             vid_fname = fullfile(proj_root_path, 'videos', video_name);
             obj = VideoReader(vid_fname);
@@ -43,6 +54,7 @@ if do_preproc
             rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
             gt_depth_frames = [];
             camera_info = [];
+            depth_holes_mask_frames = [];
 
         case 'mat'
             vid_fname = fullfile(proj_root_path, 'videos', video_name);
@@ -52,6 +64,7 @@ if do_preproc
             end
             rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
             gt_depth_frames = [];
+            depth_holes_mask_frames = [];
             camera_info = [];
             
         otherwise

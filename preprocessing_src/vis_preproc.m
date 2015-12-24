@@ -1,5 +1,5 @@
 function vis_preproc(ppvid, video_name, fname_gif)
-if nargin<3
+ if nargin<3
     fname_gif = []; % indicates that we don't save this visualization
 end
 
@@ -101,12 +101,12 @@ for n=1:N
     normOFdiv_neg = normOFdiv.*(normOFdiv <= 0);
     color_gamma_pos = 2*(1-sigmoid(normOFdiv_pos,sig_a,0));
     color_gamma_neg = 2*(sigmoid(normOFdiv_neg,sig_a,0));
-    ch = 1;
-    OFdivRender(:,:,ch) = OFdivRender(:,:,ch).^color_gamma_pos;
-    ch = 3;
-    OFdivRender(:,:,ch) = OFdivRender(:,:,ch).^color_gamma_neg;
-    imshow(OFdivRender);
-    title('Divergence of optical flow')
+    % ch = 1;
+    % OFdivRender(:,:,ch) = OFdivRender(:,:,ch).^color_gamma_pos;
+    % ch = 3;
+    % OFdivRender(:,:,ch) = OFdivRender(:,:,ch).^color_gamma_neg;
+    % imshow(OFdivRender);
+    % title('Divergence of optical flow')
     
     if ~isempty(fname_gif)
         save_animated_gif_frame(fname_gif, n==1, h);        

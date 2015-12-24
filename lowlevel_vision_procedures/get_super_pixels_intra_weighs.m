@@ -1,5 +1,13 @@
 function [all_sp_pairs_intra, weighs_sp_intra] = ...
-    get_super_pixels_intra_weighs(img, spLblImg)
+    get_super_pixels_intra_weighs(img, spLblImg, all_neigh_pairs_inds)
+
+if nargin < 3 
+    % preferably evaluate this once externally and reuse in each call.
+    % than use default assignment
+    [all_neigh_pairs_inds, ~] = ...
+        get_inds_of_all_pixels_neighbours(size(spLblImg), 1);
+
+end
 spLblImg = double(spLblImg);
 
 img_edges = double(imgradient(rgb2gray(img), 'sobel'));
@@ -8,8 +16,6 @@ img_edges = img_edges - mean(img_edges(:));
 img_edges = img_edges/std(img_edges(:));
 img_edges = img_edges + min(img_edges(:));
 
-[all_neigh_pairs_inds, ~] = ...
-get_inds_of_all_pixels_neighbours(size(spLblImg), 1);
 
 % find the super pixels labels for all pixels pairs in distance 1
 sp_pairs = [ spLblImg(all_neigh_pairs_inds(:,1)) ...

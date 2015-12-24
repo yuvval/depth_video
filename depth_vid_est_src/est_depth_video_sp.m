@@ -93,11 +93,16 @@ OFweights = C_OF*OF_const_mag.^(1);
 % edge between them
 n=0;
 [all_sp_pairs_intra, weighs_sp_intra] = deal([]);
+
+% find indices for all radius 1 pixels around a each image pixel.
+[all_neigh_pairs_inds, ~] = ...
+    get_inds_of_all_pixels_neighbours(imsize_OF, 1);
+
 for t=1:(Nframes)
     tic
     [all_sp_pairs_intra_curr, weighs_sp_intra_curr] = ...
         get_super_pixels_intra_weighs(ppvid.rgb_frames(:,:,:,t), ...
-                                      ppvid.superpxl_frames{t});
+                                      ppvid.superpxl_frames{t}, all_neigh_pairs_inds);
     all_sp_pairs_intra = [all_sp_pairs_intra ; n+ ...
                         all_sp_pairs_intra_curr];
     weighs_sp_intra = [ weighs_sp_intra ; weighs_sp_intra_curr];
