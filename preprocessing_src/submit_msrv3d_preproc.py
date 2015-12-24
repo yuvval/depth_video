@@ -14,7 +14,7 @@ prepr_params['eigen.clgtv'] = """struct('depth_method', 'eigen', 'opflow_method'
 
 frame_smp_interval = 1
 
-run_prms = "preprocess_wrapper('internal', {vid_name}, {prepr_params})"
+run_prms = "preprocess_wrapper('msrv3d', {vid_name}, {prepr_params})"
 
 dir_names = [dir for dir in dir_names if 'Indoor' in dir]
 num_vids_in_dirs = []
