@@ -8,10 +8,6 @@ if nargin <3
 end
 
 if nargin <4
-    scale_to_resolution = []; % Ys, Xs
-end
-
-if nargin <5
     base_path = [datasets_base '/MSRV3D/'];
 end
 

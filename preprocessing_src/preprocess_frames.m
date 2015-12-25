@@ -97,7 +97,9 @@ switch prepr_params.depth_method
     end % for k =1:length(frames)
   case 'eigen'
     system(['source ' proj_root_path 'theano-env/bin/activate'])
-    pythoncmd = 'THEANO_FLAGS=floatX=float32,device=gpu1 python'
+    gpunum = randi(4) -1;
+    pythoncmd = sprintf(['THEANO_FLAGS=floatX=float32,device=gpu%d ' ...
+                        'python'], gpunum);
     funcargs.frames = frames_tmp;
     res = matpyfs('infer_depth_and_normals_frames_seq', funcargs, ...
                   'eigen_depth', [proj_root_path 'preprocessing_src'] ...
