@@ -10,7 +10,7 @@ dir_names = {};
 cnt = 1;
 for k = 1:length(ls_raw_list)
     if is_in_str('Indoor', ls_raw_list{k});
-        dir_names{cnt} = ls_raw_list{k};
+        dir_names{cnt} = ls_raw_list{k}; %#ok
         cnt = cnt+1;
     end
 end
@@ -25,7 +25,7 @@ for k = 1:length(dir_names)
     for m = 1:num_vids_in_dir
         vid_id.dir = dir;
         vid_id.idx = m;
-        vid_ids{cnt} = vid_id;
+        vid_ids{cnt} = vid_id; %#ok
         cnt = cnt+1;
     end
 end

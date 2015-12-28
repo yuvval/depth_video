@@ -1,5 +1,9 @@
-function [rgb_frames, gt_depth_frames, depth_holes_mask_frames, vid_info] = load_video(prepr_params)
-initdirs
+function [rgb_frames, gt_depth_frames, depth_holes_mask_frames, ...
+          vid_info] = load_video(prepr_params)
+%
+% [rgb_frames, gt_depth_frames, depth_holes_mask_frames, ...
+%              vid_info] = load_video(prepr_params)
+%
 
 
 load_vid_params = prepr_params.load_vid;
@@ -51,3 +55,14 @@ switch prepr_params.dataset
   otherwise
     error('Unknown dataset')
 end
+
+rgb_frames = normalize_video(rgb_frames);
+
+
+
+function rgb_frames = normalize_video(rgb_frames)
+% 
+if ~isa(rgb_frames, 'uint8')
+    return
+end
+rgb_frames = rgb_frames/255;

@@ -1,6 +1,6 @@
-function fname = generate_preproc_fname(ppstage, prepr_params)
-
-params_for_fname = getfield(prepr_params, ppstage);
+function [fullname, fname] = generate_preproc_fname(ppstage, prepr_params)
+%
+params_for_fname = prepr_params.(ppstage);
 
 if isfield(prepr_params.load_vid, 'scale_to_resolution')
     params_for_fname.res = prepr_params.load_vid.scale_to_resolution;
@@ -16,3 +16,8 @@ end % if strcmp
 
 fname = regexprep(sprintf('%s_%s_%s', dataset, video_name, ...
 buildStringFromStruct(params_for_fname, '__')), '\.', '_' );
+
+fullpath = fullfile(get_dirs('preproc_base'), dataset, ppstage);
+system(['mkdir -p ' fullpath]); % creates the dir 
+%TODO Check that system command worked
+fullname = fullfile(fullpath, fname);

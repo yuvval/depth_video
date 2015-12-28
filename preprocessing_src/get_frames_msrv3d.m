@@ -1,14 +1,13 @@
 function [rgb_frames, depth_frames, depth_holes_frames, clip_info] = ...
     get_frames_msrv3d(dataDir, clipIndex, sample_interval,  base_path)
 
-initdirs
 
 if nargin <3
     sample_interval = 1;
 end
 
 if nargin <4
-    base_path = [datasets_base '/MSRV3D/'];
+    base_path = [get_dirs('datasets_base') '/MSRV3D/'];
 end
 
 addpath(base_path);
