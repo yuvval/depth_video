@@ -6,10 +6,12 @@ function [opflow_uvframes] = calc_optical_flow(video, prepr_params)
 fullfname = generate_preproc_fname('opflow', prepr_params);
 do_force = take_from_struct(prepr_params, 'do_force', 0);
 preproc_vars = {'opflow_uvframes'};
-[do_stage, opflow_uvframes] = cond_load([fullfname '.mat'], do_force, ...
+[do_stage, opflow_uvframes] = cond_load(fullfname, do_force, ...
                                         preproc_vars{1:end});
 if ~do_stage, fprintf('Loaded OF from %s\n', fullfname);return;end
 
+% sample the video frames 
+video = video(:,:,:, vid_frames_sample(video, prepr_params));
 
 ofmethod = prepr_params.opflow.opflow_method;
 

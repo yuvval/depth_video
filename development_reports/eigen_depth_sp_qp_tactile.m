@@ -2,43 +2,24 @@ clear
 addpath ../
 initdirs
 
+[vid_ids, ~, basedir]  = get_msrv3d_vid_ids();
 
-% vidname = 'front_pick_bin1'
-% interval = 1;
-% ppvid = preprocess_wrapper('mat', vidname, struct('depth_method', ...
-%     'eigen', ...
-%     'opflow_method', ...
-%     'CLGTV', ...
-%     'sample_interval', ...
-%     interval, ...
-%     'superpixels', ...
-%     'slico', ...
-%     'n_superpixels', ...
-%     2000));
-% 
-% depth_est_params = struct('rho_OF', 1, 'C_OF', 1, 'rho_div', 1, 'dist_around_OF', 1);
-% 
-% % t = 5
-% % imagesc(superpxl_intensities_to_img(ppvid.superpxl_frames{t}, ppvid.depths_superpxl{t}, ppvid.n_superpxl{t}))
-% 
-% 
-% mnFrameID = 1;
-% mxFrameID = -1; % -1 means last frame
+interval = 6;
 
-vidname = 'br_occ_turn0'
-interval = 5;
-    ppvid = preprocess_wrapper('princeton', vidname, struct('depth_method', ...
-                                                      'eigen', ...
-                                                      'opflow_method', ...
-                                                      'CLGTV', ...
-                                                      'sample_interval', ...
-                                                      interval, ...
-                                                      'superpixels', ...
-                                                      'slico', ...
-                                                      'n_superpixels', ...
-                                                      2000, ...
-                                                      'scale_to_resolution', ...
-                                                      [240 320]));
+
+params.dataset = 'msrv3d';
+params.depth.depth_method = 'eigen'; 
+params.superpixels.sp_method = 'slico'; 
+params.superpixels.n_superpixels = 2000;
+params.video_name = vid_ids{1};
+params.opflow.opflow_method = 'CLGTV';
+params.mnFrameID = 1;
+params.mxFrameID = -1; % -1 means last frame
+params.sample_interval = interval; 
+
+ppvid = preprocess_wrapper(params);
+
+
 mnFrameID = 1;
 mxFrameID = -1; % -1 means till last frame
 depth_est_params = struct('rho_OF', 1, 'C_OF', 1, 'rho_div', 1, 'dist_around_OF', 1);
@@ -91,13 +72,22 @@ depth_est_params.tactile_inds = tactile_inds;
 depth_est_params.C_tact = 5;
 depth_est_params.rho_tact = 10;
 dvid_sp = est_depth_video_sp(ppvid, mnFrameID, mxFrameID, ...
-    depth_est_params);
+    interval, depth_est_params);
 
 
+frames_sample = vid_frames_sample(ppvid.rgb_frames, ppvid.prepr_params);
 dvid = nan(240,320,length(dvid_sp));
 for t=1:length(dvid_sp)
-    dvid(:,:,t) = superpxl_intensities_to_img(ppvid.superpxl_frames{t}, dvid_sp{t}, ppvid.n_superpxl{t});
+    dvid(:,:,t) = superpxl_intensities_to_img(ppvid.superpxl_frames{frames_sample(t)}, dvid_sp{t}, ppvid.n_superpxl{frames_sample(t)});
 end
+
+% set video name 
+if strcmp(params.dataset, 'msrv3d') % msrv3d has a unique way of video naming
+    vidname = sprintf('%s_%d', params.video_name.dir, params.video_name.idx);
+else
+    vidname = params.video_name;
+end % if strcmp
+
 save(sprintf('~/tmp/%s_est_sp_d.mat', vidname), 'dvid_sp', 'mnFrameID',...
     'mxFrameID', 'interval', 'vidname', 'depth_est_params')
 
@@ -105,7 +95,6 @@ fname_gif = sprintf('~/www/figs/%s_est_d_intra_C_%f_std_%f.gif', vidname, ...
                     depth_est_params.C_intra, depth_est_params.rho_intra);
 
 %%
-vis_dep_est(ppvid, vidname, dvid, mnFrameID, ...
-    mxFrameID, fname_gif, false)
-%     mxFrameID, fname_gif, true, boxes)
+vis_dep_est(ppvid, vidname, dvid, fname_gif, false);
+%     fname_gif, true, boxes)
 scp_file(fname_gif);

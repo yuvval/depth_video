@@ -1,22 +1,25 @@
-function vis_dep_est(ppvid, video_name, depth_estimate, mnFrameID, ...
-                     mxFrameID, fname_gif, visibility_flag, ptmp)
+function vis_dep_est(ppvid, video_name, depth_estimate,  ...
+                     fname_gif, visibility_flag, ptmp)
 
 
-    if nargin<6
+    if nargin<4
         fname_gif = []; % indicates that we don't save this visualization
     end
     
-    if nargin < 7
+    if nargin <5
         visibility_flag = false;
     end
     
     % an API for temporary experimental stuff
-    if nargin < 8
+    if nargin < 6
         ptmp = [];
     else
         boxes = ptmp;
     end
     
+    mnFrameID = ppvid.prepr_params.mnFrameID;
+    mxFrameID = ppvid.prepr_params.mxFrameID;
+    smp_ivl = ppvid.prepr_params.sample_interval;
     
     if visibility_flag 
         visibility_flag = 'on';
@@ -69,7 +72,7 @@ function vis_dep_est(ppvid, video_name, depth_estimate, mnFrameID, ...
     a = axes('Visible',visibility_flag);
 
     t=1;
-    for n=mnFrameID:mxFrameID
+    for n=mnFrameID:smp_ivl:mxFrameID
         subplot(2,9,1:4)
         rgb_frame = ppvid.rgb_frames(:,:,:,n)/n255;
         if is_in_str('eigen', fname_gif)

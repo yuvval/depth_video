@@ -12,6 +12,10 @@ function resultString = handleObject(object, seperatorChar, parentName)
     elseif islogical(object)
        resultString = sprintf('%s_%d',parentName,object);
     elseif isstruct(object)
+        if isempty(struct2cell(object))
+            resultString = '';
+            return;
+        end
         names = fieldnames(object);
         if strcmp(parentName,'')
             newName = names{1};

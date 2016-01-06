@@ -1,99 +1,14 @@
-function ppvid = preprocess_wrapper(dataset, video_name, prepr_params)
-initdirs
+function ppvid = preprocess_wrapper(prepr_params)
+% function ppvid = preprocess_wrapper(prepr_params)
+% join preprocessed (mostly precomputed) data to a single struct
 
+[ppvid.rgb_frames, ppvid.gt_depth_frames, ...
+ ppvid.depth_holes_mask_frames, ppvid.vid_info] = ...
+    load_video(prepr_params);
 
-fname = generate_preproc_fname(dataset, video_name, prepr_params);
-fullpath = fullfile(preproc_base,...
-    prepr_params.depth_method, prepr_params.opflow_method, dataset);
-system(['mkdir -p ' fullpath]); % creates the dir if it doesn't exists
+[ppvid.depth_frames, ppvid.depths_superpxl, ...
+ ppvid.superpxl_frames, ppvid.n_superpxl] = ...
+    calc_depth(ppvid.rgb_frames, prepr_params);
 
-fullfname = fullfile(fullpath, fname);
-
-do_force = 0;
-preproc_vars = ...
-    {'rgb_frames', 'depth_frames', 'depth_holes_mask_frames', ... 
-     'opflow_frames' 'superpxl_frames', ....
-    'depths_superpxl', 'n_superpxl', 'gt_depth_frames', 'camera_info'};
-[do_preproc, ...
-    rgb_frames, depth_frames, depth_holes_mask_frames, ...
-    opflow_frames, superpxl_frames, ...
-    depths_superpxl, n_superpxl, gt_depth_frames, camera_info] ...
-    = cond_load([fullfname '.mat'], do_force, preproc_vars{1:end});
-
-if do_preproc
-    
-    switch dataset
-        case 'princeton'
-
-            scaled_resln = take_from_struct(prepr_params, 'scale_to_resolution', []);
-            if isempty(scaled_resln)
-                [rgb_frames, gt_depth_frames, ...
-                    ~, ~, camera_info] = ...
-                    get_frames_princeton(video_name, ...
-                    prepr_params.sample_interval, scaled_resln);
-            else
-                [~, ~, rgb_frames, gt_depth_frames, ...
-                    camera_info] = ...
-                    get_frames_princeton(video_name, ...
-                    prepr_params.sample_interval, scaled_resln);
-            end
-            depth_holes_mask_frames = [];
-
-        case 'msrv3d'
-            scaled_resln = take_from_struct(prepr_params, 'scale_to_resolution', []);
-            dataDir = video_name.dir;
-            clipIndex = video_name.idx;
-            [rgb_frames, gt_depth_frames, ...
-             depth_holes_mask_frames, clip_info] = ...
-            get_frames_msrv3d(dataDir, clipIndex, prepr_params.sample_interval, scaled_resln);
-
-        case 'internal'
-            vid_fname = fullfile(proj_root_path, 'videos', video_name);
-            obj = VideoReader(vid_fname);
-            video = obj.read();
-            rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
-            gt_depth_frames = [];
-            camera_info = [];
-            depth_holes_mask_frames = [];
-
-        case 'mat'
-            vid_fname = fullfile(proj_root_path, 'videos', video_name);
-            load(vid_fname)
-            if ~exist('video');
-                video = frames;
-            end
-            rgb_frames = video(:,:,:, 1:prepr_params.sample_interval:end);
-            gt_depth_frames = [];
-            depth_holes_mask_frames = [];
-            camera_info = [];
-            
-        otherwise
-            error('Unknown dataset')
-    end
-    [depth_frames, opflow_frames, superpxl_frames, depths_superpxl, n_superpxl] = ...
-        preprocess_frames(rgb_frames, prepr_params);
-    
-    preproc_vars{end+1} = 'fieldNames';
-    ppvid = v2struct(preproc_vars);
-    save(fullfname, '-struct', 'ppvid', '-v7.3');
-else
-    preproc_vars{end+1} = 'fieldNames';
-    ppvid = v2struct(preproc_vars);
-end
-
-
-
-% def preprocess_wrapper(dataset, video_name, pp_params)
-% 
-% 
-% ppfname = generate_pp_fname()
-% condload(ppfname)
-% 
-% if do_..
-% 
-%   switch dataset
-%     case ...
-%        reso = take_from_struct(pp..res, [])
-%        get video + depthGT(reso)
-%   
-%   save (ppfname, ppvid)
+ppvid.opflow_frames = calc_optical_flow(ppvid.rgb_frames, prepr_params);
+ppvid.prepr_params = prepr_params;

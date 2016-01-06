@@ -1,4 +1,5 @@
-function est_depths_sp_vid = est_depth_video_sp(ppvid, mnFrameID, mxFrameID, depth_est_params)
+function est_depths_sp_vid = est_depth_video_sp(ppvid, mnFrameID, ...
+                                                mxFrameID, frames_smp_interval, depth_est_params)
 if mxFrameID == -1
     mxFrameID = size(ppvid.depth_frames,3);
 end % if mxFrameID == -1
@@ -17,59 +18,69 @@ dist_around_OF = depth_est_params.dist_around_OF; % L1 radius around an OF pixel
 tmp = ppvid.depth_frames(:,:,1);
 imsize_depth = size(tmp);
 imsize_OF = size(ppvid.opflow_frames{1}(:,:,1));
-Nframes = 1+mxFrameID - mnFrameID;%size(ppvid.depth_frames,3);
-Nimg = prod(imsize_depth);
-N = Nimg*Nframes;
+
+
+frames_sample = vid_frames_sample(ppvid.rgb_frames, ppvid.prepr_params);
+Nframes = length(frames_sample);
+% Nframes = 1+mxFrameID - mnFrameID;%size(ppvid.depth_frames,3);
+Nimg = prod(imsize_depth); %#ok
+%N = Nimg*Nframes;
 %% convert depth, gradients and optical flow from cell array to a 3D array (2D sptial, time).
 [superpxl_frames, depths_superpxl, n_superpxl] = deal({});
-depth_frames = ppvid.depth_frames(:,:, mnFrameID:mxFrameID);
 [uOFframes, vOFframes] =  deal(zeros([imsize_OF (Nframes-1)]));
 t = 1;
 
 d = [];
-for n=mnFrameID:mxFrameID
+% sample only the relevant frames
+for n=frames_sample
     superpxl_frames{t} = ppvid.superpxl_frames{n};
     depths_superpxl{t} = ppvid.depths_superpxl{n};
     d = [d ; depths_superpxl{t}];
     n_superpxl{t} = ppvid.n_superpxl{n};
     
-    if t<Nframes
-        uOFframes(:,:,t) = ppvid.opflow_frames{n}(:,:,1);
-        vOFframes(:,:,t) = ppvid.opflow_frames{n}(:,:,2);
-    end
     t=t+1;
 end
+
+assert(length(ppvid.opflow_frames) == (Nframes-1)) % sanity check 
+for t=1:(Nframes-1)
+    uOFframes(:,:,t) = ppvid.opflow_frames{t}(:,:,1);
+    vOFframes(:,:,t) = ppvid.opflow_frames{t}(:,:,2);
+end
+
 % depth_frames = depth_frames/mean(depth_frames(:));
 %%
 % d = double(depth_frames(:));
 Npxl = length(d);
 
 %%
-[XX0, YY0] = meshgrid(1:imsize_OF(2), 1:imsize_OF(1));
-N_neigh_per_pxl = (1 + 2*dist_around_OF)^2; % number of neighbours around each OF pixel
+% [XX0, YY0] = meshgrid(1:imsize_OF(2), 1:imsize_OF(1));
+% N_neigh_per_pxl = (1 + 2*dist_around_OF)^2; % number of neighbours around each OF pixel
 [orig_ids_map, OF_ids_map, OF_const_mag] = deal([]);
-sp_pairs_abs_OF = {};
-sp_pairs_overlap_prop_cell = {};
+% sp_pairs_abs_OF = {};
+% sp_pairs_overlap_prop_cell = {};
 orig_ids_map_cell = {};
+
+[sp_pairs_inds, sp_pairs_overlap_prop, sp_pairs_abs_OF] = ...
+    calc_sp_opflow_overlap(ppvid.opflow_frames, ppvid.superpxl_frames, ...
+                           ppvid.n_superpxl, ppvid.prepr_params);
+
 n = 0;
 for t=1:(Nframes-1)
-    XpostOF = round(XX0 + uOFframes(:,:,t));
+    % XpostOF = round(XX0 + uOFframes(:,:,t));
     
-    YpostOF = round(YY0 + vOFframes(:,:,t));
+    % YpostOF = round(YY0 + vOFframes(:,:,t));
     
-    [sp_pairs_inds, sp_pairs_overlap_prop, sp_pairs_abs_OF_curr] = ...
-        get_superpxls_relative_overlaps_following_OF...
-        (ppvid.superpxl_frames{t}, ppvid.n_superpxl{t}, ...
-        ppvid.superpxl_frames{t+1}, ppvid.n_superpxl{t+1}, ...
-        XpostOF, YpostOF);
+    % [sp_pairs_inds, sp_pairs_overlap_prop, sp_pairs_abs_OF_curr] = ...
+    %     get_superpxls_relative_overlaps_following_OF...
+    %     (ppvid.superpxl_frames{t}, ppvid.n_superpxl{t}, ...
+    %     ppvid.superpxl_frames{t+1}, ppvid.n_superpxl{t+1}, ...
+    %     XpostOF, YpostOF);
     
-    orig_ids_map = [orig_ids_map ; sp_pairs_inds(:,1) + n];
-    OF_ids_map   = [OF_ids_map   ; n + double(ppvid.n_superpxl{t}) + sp_pairs_inds(:,2)]; % -1 because superpxl labels count starts from 1
-    OF_const_mag = [OF_const_mag ; sp_pairs_overlap_prop];
+    orig_ids_map = [orig_ids_map ; sp_pairs_inds{t}(:,1) + n];
+    OF_ids_map   = [OF_ids_map   ; n + double(n_superpxl{t}) + sp_pairs_inds{t}(:,2)]; 
+    OF_const_mag = [OF_const_mag ; sp_pairs_overlap_prop{t}];
     orig_ids_map_cell{end+1} = orig_ids_map;
-    sp_pairs_overlap_prop_cell{end+1} = sp_pairs_overlap_prop;
-    sp_pairs_abs_OF{end+1} = sp_pairs_abs_OF_curr;
-    n = n + double(ppvid.n_superpxl{t});
+    n = n + double(n_superpxl{t});
     
     %     n = length(sp_pairs_inds);
     %     orig_ids_map(1:n,t) = sp_pairs_inds(:,1) + (t-1)*double(ppvid.n_superpxl{t});
@@ -91,23 +102,21 @@ OFweights = C_OF*OF_const_mag.^(1);
 
 % Adding a constraint between adjacent superpixels weighing the
 % edge between them
-n=0;
+cnt=0;
 [all_sp_pairs_intra, weighs_sp_intra] = deal([]);
 
 % find indices for all radius 1 pixels around a each image pixel.
 [all_neigh_pairs_inds, ~] = ...
     get_inds_of_all_pixels_neighbours(imsize_OF, 1);
 
-for t=1:(Nframes)
-    tic
+for n=frames_sample
     [all_sp_pairs_intra_curr, weighs_sp_intra_curr] = ...
-        get_super_pixels_intra_weighs(ppvid.rgb_frames(:,:,:,t), ...
-                                      ppvid.superpxl_frames{t}, all_neigh_pairs_inds);
-    all_sp_pairs_intra = [all_sp_pairs_intra ; n+ ...
+        get_super_pixels_intra_weighs(ppvid.rgb_frames(:,:,:,n), ...
+                                      ppvid.superpxl_frames{n}, all_neigh_pairs_inds);
+    all_sp_pairs_intra = [all_sp_pairs_intra ; cnt + ...
                         all_sp_pairs_intra_curr];
     weighs_sp_intra = [ weighs_sp_intra ; weighs_sp_intra_curr];
-    n = n + double(ppvid.n_superpxl{t});
-    toc
+    cnt = cnt + double(ppvid.n_superpxl{n});
 end
 
 weighs_sp_intra = C_intra*exp((-1/(rho_intra^2*var(weighs_sp_intra)))*weighs_sp_intra.^2);
@@ -118,7 +127,7 @@ weighs_sp_intra = C_intra*exp((-1/(rho_intra^2*var(weighs_sp_intra)))*weighs_sp_
 
 Dmean_d = spalloc(Nframes, Npxl, Npxl);
 
-n=0;
+cnt=0;
 for t=1:(Nframes)
     %%% commented out code doesn't work
 %     stable_overlap_sp_ids = find(sp_pairs_overlap_prop_cell{t} > 0.8);  % get SP with >80% overlap
@@ -130,10 +139,10 @@ for t=1:(Nframes)
 %     Dmean_d(t, n+stable_SPs) = 1/n_stable;
 
     
-    stable_SPs = 1:ppvid.n_superpxl{t};
-    Dmean_d(t, n+stable_SPs) = 1;
+    stable_SPs = 1:ppvid.n_superpxl{frames_sample(t)};
+    Dmean_d(t, cnt+stable_SPs) = 1;
     
-    n = n + double(ppvid.n_superpxl{t});
+    cnt = cnt + double(ppvid.n_superpxl{frames_sample(t)});
 end
 
 
@@ -307,9 +316,9 @@ toc
 
 qp_res_d = X((end-Npxl+1):(end));
 n=1;
-for t = 1:(1+mxFrameID - mnFrameID)
-    est_depths_sp_vid{t} = qp_res_d(n:(n+ppvid.n_superpxl{t}-1));
-    n = n+ppvid.n_superpxl{t};
+for t = 1:Nframes
+    est_depths_sp_vid{t} = qp_res_d(n:(n+ppvid.n_superpxl{frames_sample(t)}-1));
+    n = n+ppvid.n_superpxl{frames_sample(t)};
 end
 
 % est_depth_vid = reshape(full(X((end-Npxl):(end-1))), size(depth_frames,1), size(depth_frames,2), size(depth_frames,3));
